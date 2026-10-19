@@ -1,0 +1,1061 @@
+/* Thème clair par défaut ; voir :root[data-theme="dark"] plus bas */
+:root {
+  color-scheme: light dark;
+  --bg: #efefeb;
+  --panel: #fbfbf9;
+  --text: #1b1f24;
+  --muted: #6b7079;
+  --border: #e1e1dc;
+  --btn: #ffffff;
+  --btn-hover: #f2f2ee;
+  --accent: #1f6f5c;
+  --accent-hover: #195c4c;
+  --accent-text: #ffffff;
+  --focus: #2f8f76;
+  --danger: #b42318;
+  /* Couleurs du canvas, lues par app.js */
+  --cell-dead: #fbfbf9;
+  --cell-live: #1d2a33;
+  --grid-line: #e9e9e4;
+  --select: #1f6f5c;
+  --select-text: #ffffff;
+  --preview: #1f6f5c;
+  /* Tranches d'âge : 1 | 2-3 | 4-10 | 11-50 | plus de 50 ; la plus ancienne reprend la couleur normale */
+  --age-1: #f59f00;
+  --age-2: #e8590c;
+  --age-3: #d6336c;
+  --age-4: #7048e8;
+  --age-5: #1d2a33;
+  --chart-line: #1f6f5c;
+  --chart-fill: rgba(31, 111, 92, 0.16);
+  --chart-axis: #d9d9d3;
+  --shadow: 0 1px 2px rgba(20, 24, 28, 0.06);
+  --float-shadow: 0 2px 10px rgba(20, 24, 28, 0.12);
+  /* Mini-carte (cellules et rectangle de la vue lus par app.js) et légendes des boutons */
+  --minimap-bg: rgba(251, 251, 249, 0.86);
+  --minimap-cell: #1d2a33;
+  --minimap-view: #e8590c;
+  --tooltip-bg: #1b1f24;
+  --tooltip-text: #f4f5f6;
+  --tooltip-muted: #b4b9c0;
+  --tooltip-border: #1b1f24;
+  --tooltip-key: rgba(255, 255, 255, 0.12);
+}
+
+/* Thème sombre : choisi dans les Réglages, ou système sombre en mode Auto (attribut posé par la page) */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0c0e11;
+  --panel: #14171b;
+  --text: #e6e8eb;
+  --muted: #8d949e;
+  --border: #252930;
+  --btn: #1b1f25;
+  --btn-hover: #22272e;
+  --accent: #4fc79c;
+  --accent-hover: #63d6ab;
+  --accent-text: #08130f;
+  --focus: #63d6ab;
+  --danger: #f97066;
+  --cell-dead: #0f1215;
+  --cell-live: #7ee2bd;
+  --grid-line: #1b1f25;
+  --select: #f5c451;
+  --select-text: #1b1f24;
+  --preview: #f5c451;
+  --age-1: #ffe066;
+  --age-2: #ff922b;
+  --age-3: #f06595;
+  --age-4: #9775fa;
+  --age-5: #7ee2bd;
+  --chart-line: #4fc79c;
+  --chart-fill: rgba(79, 199, 156, 0.18);
+  --chart-axis: #2c3139;
+  --shadow: none;
+  --float-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+  --minimap-bg: rgba(20, 23, 27, 0.86);
+  --minimap-cell: #7ee2bd;
+  --minimap-view: #f5c451;
+  --tooltip-bg: #2a2f37;
+  --tooltip-text: #e6e8eb;
+  --tooltip-muted: #9aa1ab;
+  --tooltip-border: #3a404a;
+  --tooltip-key: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+
+* { box-sizing: border-box; }
+
+/* L'attribut hidden masque toujours, même sur un élément qui reçoit un display */
+[hidden] { display: none !important; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Panneau de contrôle : tient sans défilement dans 760 px de haut */
+.panel {
+  flex: 0 0 304px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 18px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Indicateur de sauvegarde, en très petit à côté du titre */
+.save-indicator {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.save-indicator.is-problem { color: var(--danger); }
+
+/* Bouton « Règles du jeu », juste après le titre : icône seule dans le panneau étroit */
+.rules-toggle {
+  align-self: center;
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  flex: none;
+}
+
+.rules-toggle:hover { background: var(--btn-hover); color: var(--text); }
+.rules-toggle[aria-expanded="true"] { color: var(--accent); }
+.rules-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.rules-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rules-toggle-label { display: none; }
+
+/* Menu déroulant des règles : placé sous le bouton par app.js, défile s'il est plus haut que l'écran */
+.rules-menu {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 900;
+  width: min(380px, calc(100vw - 12px));
+  overflow-y: auto;
+  padding: 12px 16px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  font-size: 13px;
+  line-height: 1.5;
+  overscroll-behavior: contain;
+}
+
+.rules-menu[hidden] { display: none; }
+.rules-menu:focus { outline: none; }
+
+/* En-tête fixé en haut du menu : le bouton × reste visible quand on fait défiler les règles */
+.rules-head {
+  position: sticky;
+  top: -12px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -12px 0 4px;
+  padding-top: 12px;
+  background: var(--panel);
+}
+
+.rules-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.rules-menu h3 {
+  margin: 12px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.rules-menu p { margin: 4px 0; }
+.rules-menu ul, .rules-menu ol { margin: 4px 0; padding-left: 20px; }
+.rules-menu li { margin: 2px 0; }
+.rules-menu a { color: var(--accent); }
+.rules-links a::after { content: " ↗"; }
+
+.brand h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.group h2 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+/* Démarrer prend la place restante à côté de « Remettre à zéro » */
+.row-play { grid-template-columns: 1fr auto; }
+
+.btn, .select, .input {
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--btn);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+
+/* :where() ne compte pas dans la priorité : un bouton enfoncé survolé garde sa propre couleur */
+.btn:hover:where(:not(:disabled):not([aria-disabled="true"])), .select:hover { background: var(--btn-hover); }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.45; cursor: default; }
+
+.btn-primary {
+  min-height: 34px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.btn-primary:hover:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--accent-hover); }
+
+/* Bouton en mode « Pause » : contour plutôt que plein */
+#play[aria-pressed="true"] {
+  background: transparent;
+  color: var(--accent);
+}
+
+#play[aria-pressed="true"]:hover { background: var(--btn-hover); }
+
+.btn:focus-visible, .select:focus-visible, .tool:focus-visible, input[type="range"]:focus-visible,
+textarea:focus-visible, .input:focus-visible, .check input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
+/* Saut de N générations : champ N et bouton, ou progression et Annuler */
+.jump {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  gap: 6px;
+}
+
+#jump-progress { grid-template-columns: 1fr auto; align-items: center; }
+.jump[hidden] { display: none; }
+
+.input {
+  cursor: text;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.progress-track {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.progress-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.check input {
+  margin: 0;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+}
+
+/* Réglage sur une ligne : libellé, curseur, valeur */
+.field {
+  display: grid;
+  grid-template-columns: 56px 1fr 62px;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.field output {
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+/* Mesures : trois tuiles côte à côte */
+.stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.stats div {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.stats dt {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.25;
+}
+
+.stats dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Récapitulatif des raccourcis */
+.keys {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.keys li {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  align-items: center;
+  gap: 6px;
+}
+
+.keys .k {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--btn);
+  color: var(--text);
+  font: 10.5px/1.55 ui-monospace, Menlo, monospace;
+  text-align: center;
+}
+
+/* Panneau replié : la grille prend toute la largeur */
+.app.panel-collapsed .panel { display: none; }
+
+/* Poignée discrète pour rouvrir le panneau replié */
+.panel-handle {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 56px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: var(--panel);
+  color: var(--muted);
+  box-shadow: var(--float-shadow);
+  cursor: pointer;
+}
+
+.panel-handle:hover { color: var(--text); }
+.panel-handle[hidden] { display: none; }
+
+.panel-handle svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Zone de dessin */
+.stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+#board, #overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#board {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: crosshair;
+}
+
+/* Calque d'édition : ne reçoit aucun événement */
+#overlay { pointer-events: none; }
+
+/* Le curseur reflète l'outil effectif */
+#board[data-cursor="move"] { cursor: grab; }
+#board[data-cursor="grabbing"] { cursor: grabbing; }
+#board[data-cursor="select"] { cursor: crosshair; }
+#board[data-cursor="place"] { cursor: copy; }
+#board[data-cursor="pencil"] {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path d='M3 21l1.6-5.4L16.2 4l3.8 3.8L8.4 19.4z' fill='white' stroke='black' stroke-width='1.4' stroke-linejoin='round'/><path d='M13.6 6.6l3.8 3.8' stroke='black' stroke-width='1.4'/></svg>") 3 21, crosshair;
+}
+
+/* Barres flottantes en haut à gauche du canvas */
+.hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tool-group, .placebar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: var(--float-shadow);
+  pointer-events: auto;
+}
+
+.placebar[hidden] { display: none; }
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tool.icon { width: 30px; padding: 0; justify-content: center; }
+.tool:hover:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--btn-hover); }
+.tool:disabled, .tool[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+
+.tool svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
+.tool kbd {
+  min-width: 0;
+  padding: 0 3px;
+  font-size: 10px;
+  color: var(--muted);
+  border-bottom-width: 1px;
+}
+
+/* Outil actif clairement visible */
+.tool[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.tool[aria-pressed="true"]:hover { background: var(--accent-hover); }
+
+.tool[aria-pressed="true"] kbd {
+  background: transparent;
+  border-color: currentColor;
+  color: inherit;
+}
+
+.placebar { padding-left: 10px; }
+
+.placebar-label {
+  margin-right: 4px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.placebar-hint { color: var(--muted); }
+
+/* Coordonnées de la cellule survolée */
+.coords {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  font: 12px/1.6 ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.coords:empty { display: none; }
+
+/* Légende des âges, en bas à gauche ; les coordonnées passent au-dessus */
+.legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 11.5px;
+  pointer-events: none;
+}
+
+.legend[hidden] { display: none; }
+.legend-title { color: var(--text); font-weight: 600; }
+.legend-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.legend-item i { width: 10px; height: 10px; border-radius: 2px; }
+.stage.has-legend .coords { bottom: 46px; }
+
+/* Graphique de population, en bas à droite */
+.chart {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: min(340px, calc(100% - 24px));
+  padding: 8px 10px 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: var(--float-shadow);
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.chart[hidden] { display: none; }
+
+.chart-head, .chart-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-title { color: var(--text); font-weight: 600; }
+.chart-head strong { color: var(--text); font-weight: 600; }
+.chart-note { color: var(--danger); }
+
+#chart-canvas {
+  display: block;
+  width: 100%;
+  height: 110px;
+  margin: 4px 0 2px;
+}
+
+.stage.has-chart .toast { bottom: 178px; }
+
+/* Message non bloquant */
+.toast {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 20px;
+  margin: 0 auto;
+  width: max-content;
+  max-width: min(560px, calc(100% - 32px));
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
+.toast[hidden] { display: none; }
+
+/* Mini-carte, en haut à droite de la grille ; sa hauteur exacte est réglée par app.js sous les barres */
+.minimap {
+  position: absolute;
+  top: 58px;
+  right: 12px;
+  width: 202px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--minimap-bg);
+  box-shadow: var(--float-shadow);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.minimap[hidden] { display: none; }
+
+#minimap-canvas {
+  display: block;
+  width: 200px;
+  height: 140px;
+  cursor: pointer;
+}
+
+.minimap.is-dragging #minimap-canvas { cursor: grabbing; }
+
+/* Échelle de la carte, en texte discret */
+.minimap-scale {
+  display: block;
+  padding: 1px 8px 2px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font: 10.5px/1.5 ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Légende d'un bouton : nom de l'action, raccourci en touche, raison si désactivé */
+.tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  max-width: min(320px, calc(100vw - 12px));
+  padding: 5px 8px;
+  border: 1px solid var(--tooltip-border);
+  border-radius: 7px;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  font-size: 12.5px;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+.tooltip[hidden] { display: none; }
+
+.tooltip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tooltip-keys {
+  display: inline-flex;
+  gap: 3px;
+  flex: none;
+}
+
+.tooltip kbd {
+  min-width: 18px;
+  border-color: rgba(255, 255, 255, 0.22);
+  background: var(--tooltip-key);
+  color: var(--tooltip-text);
+}
+
+.tooltip-detail { margin-top: 2px; color: var(--tooltip-muted); }
+.tooltip-reason { margin-top: 2px; color: var(--tooltip-muted); font-style: italic; }
+
+/* Fenêtre de dialogue RLE */
+.dialog {
+  width: min(560px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.dialog::backdrop { background: rgba(10, 12, 14, 0.4); }
+
+.dialog-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px 18px;
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dialog-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.dialog-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dialog-close:hover { background: var(--btn-hover); color: var(--text); }
+
+.dialog section { display: flex; flex-direction: column; gap: 10px; }
+.dialog section[hidden] { display: none; }
+
+.dialog-hint, .dialog-error, .dialog-status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dialog-error { color: var(--danger); }
+.dialog-error:empty, .dialog-status:empty { display: none; }
+
+.dialog textarea {
+  width: 100%;
+  min-height: 190px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--btn);
+  color: var(--text);
+  font: 12.5px/1.45 ui-monospace, Menlo, monospace;
+  resize: vertical;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dialog-actions .btn { width: auto; padding: 5px 14px; }
+.dialog-actions.start { justify-content: flex-start; }
+
+/* Fenêtre Réglages */
+.setting {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting + .setting {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.setting legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.segmented {
+  display: inline-grid;
+  grid-template-columns: repeat(3, auto);
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.segmented label {
+  position: relative;
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  background: var(--btn);
+}
+
+.segmented label + label { border-left: 1px solid var(--border); }
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmented label:has(input:checked) {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.segmented label:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.save-status {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.save-status.is-problem { color: var(--danger); }
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.confirm[hidden] { display: none; }
+.confirm-actions { display: flex; gap: 8px; }
+.confirm .btn { width: auto; padding: 5px 14px; }
+
+.btn-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Écran tactile : pas de double toucher pour zoomer la page, pas de sélection ni de menu d'appui long sur les boutons */
+button, select, input, label, textarea { touch-action: manipulation; }
+button { -webkit-tap-highlight-color: transparent; }
+.hud, .panel-handle, .panel button {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Doigt comme pointeur principal (téléphone, tablette) : cibles de 40 px, champs en 16 px pour que
+   Safari sur iPhone ne zoome pas la page au toucher, pas de liste de raccourcis clavier */
+@media (pointer: coarse) {
+  .rules-toggle { height: 36px; padding: 0 8px; }
+  .tool { height: 40px; min-width: 40px; justify-content: center; }
+  .tool.icon { width: 40px; }
+  .btn { min-height: 40px; }
+  .btn-primary { min-height: 42px; }
+  .input, .select, .dialog textarea { font-size: 16px; }
+  .panel-handle { width: 28px; height: 72px; }
+  .dialog-close { width: 40px; height: 40px; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .help { display: none; }
+}
+
+/* Petit écran (téléphone en portrait ou en paysage) : mini-carte et graphique plus compacts,
+   libellés des outils masqués ; la taille du canvas de la mini-carte est relue par app.js */
+@media (max-width: 720px), (max-height: 500px) {
+  /* Le titre et le bouton des règles restent en haut quand le panneau défile */
+  .brand {
+    position: sticky;
+    top: -12px;
+    z-index: 1;
+    margin-top: -12px;
+    padding-top: 12px;
+    background: var(--panel);
+  }
+  .minimap { width: 142px; }
+  #minimap-canvas { width: 140px; height: 98px; }
+  .minimap-scale { padding: 0 6px 1px; font-size: 9.5px; }
+  #chart-canvas { height: 56px; }
+  .stage.has-chart .toast { bottom: 128px; }
+  .tool:not(#place-done) span, .tool kbd, .placebar-hint { display: none; }
+  .tool { padding: 0 7px; }
+}
+
+/* Fenêtre étroite : panneau au-dessus de la grille, libellés des outils masqués */
+@media (max-width: 720px) {
+  .rules-toggle-label { display: inline; }
+  .app { flex-direction: column; }
+  .panel {
+    flex: 0 0 auto;
+    max-height: 45vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tool:not(#place-done) span, .tool kbd, .placebar-hint { display: none; }
+  .tool { padding: 0 7px; }
+}

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jeu de la vie</title>
+  <link rel="stylesheet" href="style.css">
+  <script>
+    // Thème du système avant le premier affichage ; app.js applique ensuite la préférence choisie
+    document.documentElement.dataset.theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  </script>
+</head>
+<body>
+  <div class="app">
+    <aside class="panel" aria-label="Panneau de contrôle">
+      <header class="brand">
+        <h1>Jeu de la vie</h1>
+        <button id="rules-toggle" class="rules-toggle" type="button" data-action="rules" aria-expanded="false" aria-controls="rules-menu" aria-label="Règles du jeu">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M6.1 6.2a1.95 1.95 0 1 1 2.7 1.8c-.5.2-.8.6-.8 1.1v.5"/><path d="M8 11.4v.2"/></svg>
+          <span class="rules-toggle-label">Règles du jeu</span>
+        </button>
+        <span id="save-indicator" class="save-indicator" aria-live="polite"></span>
+      </header>
+
+      <section class="group" aria-labelledby="h-simulation">
+        <h2 id="h-simulation">Simulation</h2>
+        <div class="row row-play">
+          <button id="play" class="btn btn-primary" type="button" data-action="play">Démarrer</button>
+          <button id="reset" class="btn" type="button">Remettre à zéro</button>
+        </div>
+        <div class="row">
+          <button id="back" class="btn" type="button" data-action="back" aria-label="Génération précédente">◀ Précédente</button>
+          <button id="step" class="btn" type="button" data-action="step">Une génération</button>
+        </div>
+        <div class="jump" id="jump-form">
+          <label class="visually-hidden" for="jump-n">Nombre de générations N, de 1 à 10 000</label>
+          <input id="jump-n" class="input" type="text" inputmode="numeric" value="100" maxlength="6" autocomplete="off" spellcheck="false" title="N : entier de 1 à 10 000">
+          <button id="jump" class="btn" type="button" data-action="jump">Avancer de 100</button>
+        </div>
+        <div class="jump" id="jump-progress" hidden>
+          <div class="progress" role="progressbar" aria-label="Progression du saut" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span id="jump-text" class="progress-text">génération 0 / 100</span>
+            <span class="progress-track"><span id="jump-bar" class="progress-fill"></span></span>
+          </div>
+          <button id="jump-cancel" class="btn" type="button" data-action="jump-cancel">Annuler</button>
+        </div>
+        <div class="field">
+          <label for="speed">Vitesse</label>
+          <input id="speed" type="range" min="1" max="30" step="1" value="10">
+          <output id="speed-value" for="speed">10 gén./s</output>
+        </div>
+        <label class="check"><input id="auto-pause" type="checkbox" checked> Pause si état stable</label>
+      </section>
+
+      <section class="group" aria-labelledby="h-contenu">
+        <h2 id="h-contenu">Contenu</h2>
+        <label class="visually-hidden" for="pattern">Motif prédéfini</label>
+        <select id="pattern" class="select">
+          <option value="">Poser un motif…</option>
+        </select>
+        <div class="field">
+          <label for="density" title="Densité du remplissage aléatoire">Densité</label>
+          <input id="density" type="range" min="5" max="50" step="1" value="30">
+          <output id="density-value" for="density">30 %</output>
+        </div>
+        <button id="random" class="btn" type="button">Remplissage aléatoire</button>
+        <div class="row">
+          <button id="rle-import" class="btn" type="button">Importer RLE</button>
+          <button id="rle-export" class="btn" type="button">Exporter RLE</button>
+        </div>
+      </section>
+
+      <section class="group" aria-labelledby="h-mesures">
+        <h2 id="h-mesures">Mesures</h2>
+        <dl class="stats">
+          <div><dt>Générations</dt><dd id="stat-generation">0</dd></div>
+          <div><dt>Cellules vivantes</dt><dd id="stat-live">0</dd></div>
+          <div><dt>Gén./s réelles</dt><dd id="stat-rate">—</dd></div>
+        </dl>
+        <label class="check"><input id="age-colors" type="checkbox"> Couleur selon l'âge</label>
+      </section>
+
+      <section class="group help" aria-labelledby="h-aide">
+        <h2 id="h-aide">Raccourcis</h2>
+        <ul class="keys">
+          <li><span class="k"><kbd>Espace</kbd></span><span>Appui bref : démarrer, pause</span></li>
+          <li><span class="k"><kbd>Espace</kbd></span><span>Maintenu + glisser : déplacer</span></li>
+          <li><span class="k"><kbd>N</kbd> <kbd>B</kbd></span><span>Une génération, précédente</span></li>
+          <li><span class="k"><kbd>J</kbd> <kbd>G</kbd></span><span>Avancer de N, graphique</span></li>
+          <li><span class="k"><kbd>R</kbd> <kbd>+</kbd> <kbd>-</kbd></span><span>Recentrer, zoomer, dézoomer</span></li>
+          <li><span class="k"><kbd>H</kbd> <kbd>P</kbd> <kbd>S</kbd></span><span>Déplacer, crayon, sélection</span></li>
+          <li><span class="k"><kbd class="cmd">⌘C</kbd> <kbd class="cmd">⌘X</kbd> <kbd class="cmd">⌘V</kbd></span><span>Copier, couper, coller</span></li>
+          <li><span class="k"><kbd>⌫</kbd> <kbd>Échap</kbd></span><span>Supprimer ; annuler saut, pose</span></li>
+          <li><span class="k"><kbd>R</kbd> <kbd>F</kbd> <kbd>⇧</kbd></span><span>En pose : pivoter, miroir</span></li>
+          <li><span class="k"><kbd>T</kbd> <kbd>E</kbd> <kbd>L</kbd></span><span>Thème, plein écran, panneau</span></li>
+        </ul>
+      </section>
+    </aside>
+
+    <main class="stage" id="stage">
+      <canvas id="board" aria-label="Grille du jeu de la vie"></canvas>
+      <canvas id="overlay" aria-hidden="true"></canvas>
+
+      <div class="hud">
+        <div class="toolbar" role="toolbar" aria-label="Outils d'édition">
+          <div class="tool-group" role="group" aria-label="Outil actif">
+            <button class="tool" type="button" data-tool="move" data-action="tool-move" aria-pressed="false">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v13M1.5 8h13M8 1.5 6 3.5M8 1.5l2 2M8 14.5l-2-2M8 14.5l2-2M1.5 8l2-2M1.5 8l2 2M14.5 8l-2-2M14.5 8l-2 2"/></svg>
+              <span>Déplacer</span><kbd>H</kbd>
+            </button>
+            <button class="tool" type="button" data-tool="pencil" data-action="tool-pencil" aria-pressed="true">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 2.5 13.5 5 5.5 13H3v-2.5zM9.5 4 12 6.5"/></svg>
+              <span>Crayon</span><kbd>P</kbd>
+            </button>
+            <button class="tool" type="button" data-tool="select" data-action="tool-select" aria-pressed="false">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="9" stroke-dasharray="2 1.6"/></svg>
+              <span>Sélection</span><kbd>S</kbd>
+            </button>
+          </div>
+          <div class="tool-group" role="group" aria-label="Sélection et presse-papiers">
+            <button id="copy" class="tool" type="button" data-action="copy" aria-disabled="true">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/></svg>
+              <span>Copier</span>
+            </button>
+            <button id="cut" class="tool" type="button" data-action="cut" aria-disabled="true">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="4.5" cy="11.5" r="2"/><circle cx="11.5" cy="11.5" r="2"/><path d="M6 10 12.5 2.5M10 10 3.5 2.5"/></svg>
+              <span>Couper</span>
+            </button>
+            <button id="paste" class="tool" type="button" data-action="paste" aria-disabled="true">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3" width="9" height="11.5" rx="1"/><path d="M6 3V1.8h4V3"/></svg>
+              <span>Coller</span>
+            </button>
+            <button id="delete" class="tool" type="button" data-action="delete" aria-disabled="true">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9"/></svg>
+              <span>Supprimer</span>
+            </button>
+          </div>
+          <div class="tool-group" role="group" aria-label="Vue">
+            <button id="recenter" class="tool icon" type="button" data-action="recenter" aria-label="Recentrer sur les cellules vivantes">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="4.5"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3"/></svg>
+            </button>
+            <button id="export" class="tool icon" type="button" data-action="export" aria-label="Enregistrer l'image de la grille (PNG)">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M5 7l3 3 3-3M2.5 11.5v2h11v-2"/></svg>
+            </button>
+            <button id="chart-toggle" class="tool icon" type="button" data-action="chart" aria-pressed="false" aria-label="Afficher le graphique">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2v12h12M4.5 10.5 7.5 7l2 2 4-5"/></svg>
+            </button>
+            <button id="minimap-toggle" class="tool icon" type="button" data-action="minimap" aria-pressed="true" aria-label="Masquer la mini-carte">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><rect x="8" y="5" width="4.5" height="3.5" rx="0.5"/></svg>
+            </button>
+          </div>
+          <div class="tool-group" role="group" aria-label="Fenêtre">
+            <button id="fullscreen-toggle" class="tool icon" type="button" data-action="fullscreen" aria-pressed="false" aria-label="Plein écran">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg>
+            </button>
+            <button id="panel-toggle" class="tool icon" type="button" data-action="panel" aria-pressed="false" aria-label="Replier le panneau">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M6 2.5v11M10.5 6 8.5 8l2 2"/></svg>
+            </button>
+            <button id="settings-open" class="tool icon" type="button" data-action="settings" aria-label="Réglages">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="placebar" id="placebar" role="toolbar" aria-label="Pose" hidden>
+          <span class="placebar-label">Pose : <strong id="place-name"></strong><span class="placebar-hint"> · clic pour poser</span></span>
+          <button id="rotate-cw" class="tool icon" type="button" data-action="rotate-cw" aria-label="Rotation horaire">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.5 8a4.5 4.5 0 1 1-1.3-3.2M12.5 2.3v2.9H9.6"/></svg>
+          </button>
+          <button id="rotate-ccw" class="tool icon" type="button" data-action="rotate-ccw" aria-label="Rotation antihoraire">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8a4.5 4.5 0 1 0 1.3-3.2M3.5 2.3v2.9h2.9"/></svg>
+          </button>
+          <button id="mirror-h" class="tool icon" type="button" data-action="mirror-h" aria-label="Miroir horizontal, gauche ↔ droite">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v13M6 4 2.5 8 6 12zM10 4l3.5 4-3.5 4z"/></svg>
+          </button>
+          <button id="mirror-v" class="tool icon" type="button" data-action="mirror-v" aria-label="Miroir vertical, haut ↔ bas">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8h13M4 6l4-3.5L12 6zM4 10l4 3.5 4-3.5z"/></svg>
+          </button>
+          <button id="place-done" class="tool" type="button" data-action="place-done"><span>Terminer</span><kbd>Échap</kbd></button>
+        </div>
+      </div>
+
+      <button id="panel-handle" class="panel-handle" type="button" data-action="panel-handle" aria-label="Déplier le panneau" hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>
+      </button>
+      <!-- Mini-carte : canvas séparé de la grille ; un clic centre la vue, un glisser la déplace -->
+      <div id="minimap" class="minimap" role="group" aria-label="Mini-carte : vue d'ensemble de la grille">
+        <canvas id="minimap-canvas" aria-hidden="true"></canvas>
+        <span id="minimap-scale" class="minimap-scale"></span>
+      </div>
+      <div id="coords" class="coords" aria-hidden="true"></div>
+      <div id="age-legend" class="legend" aria-label="Légende : âge des cellules en générations" hidden>
+        <span class="legend-title">Âge</span>
+        <span class="legend-item"><i style="background: var(--age-1)"></i>1</span>
+        <span class="legend-item"><i style="background: var(--age-2)"></i>2–3</span>
+        <span class="legend-item"><i style="background: var(--age-3)"></i>4–10</span>
+        <span class="legend-item"><i style="background: var(--age-4)"></i>11–50</span>
+        <span class="legend-item"><i style="background: var(--age-5)"></i>&gt;&nbsp;50</span>
+      </div>
+      <div id="chart" class="chart" role="figure" aria-label="Graphique de la population" hidden>
+        <div class="chart-head">
+          <span class="chart-title">Population</span>
+          <span>actuelle <strong id="chart-current">0</strong> · max <strong id="chart-max">0</strong></span>
+        </div>
+        <canvas id="chart-canvas" aria-hidden="true"></canvas>
+        <div class="chart-foot">
+          <span id="chart-range">génération 0</span>
+          <span id="chart-note" class="chart-note"></span>
+        </div>
+      </div>
+      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    </main>
+  </div>
+
+  <!-- Règles du jeu : menu déroulant ouvert par le bouton « ? » du panneau ; la simulation continue derrière -->
+  <section id="rules-menu" class="rules-menu" aria-labelledby="rules-title" tabindex="-1" hidden>
+    <header class="rules-head">
+      <h2 id="rules-title">Règles du jeu</h2>
+      <button id="rules-close" class="dialog-close" type="button" aria-label="Fermer les règles du jeu" title="Fermer (Échap)">×</button>
+    </header>
+    <p>Le jeu de la vie est un « jeu à zéro joueur » imaginé en 1970 par le mathématicien britannique John Horton Conway : on choisit une configuration de départ, puis on la regarde évoluer, sans plus intervenir.</p>
+    <h3>La grille</h3>
+    <ul>
+      <li>Chaque case, ou <strong>cellule</strong>, est vivante ou morte. Ici, la grille est sans limite.</li>
+      <li>Chaque cellule a <strong>huit voisines</strong> : les cases qui la touchent par un côté ou par un coin.</li>
+    </ul>
+    <h3>À chaque génération</h3>
+    <p>Toutes les cellules changent en même temps, selon le nombre de leurs voisines vivantes :</p>
+    <ol>
+      <li><strong>Naissance</strong> : une cellule morte qui a exactement 3 voisines vivantes devient vivante.</li>
+      <li><strong>Survie</strong> : une cellule vivante qui a 2 ou 3 voisines vivantes reste vivante.</li>
+      <li><strong>Mort</strong> : dans tous les autres cas, la cellule meurt ou reste morte, par isolement (0 ou 1 voisine) ou par surpopulation (4 voisines ou plus).</li>
+    </ol>
+    <p>On note cette règle <strong>B3/S23</strong> : naissance (<em>birth</em>) avec 3 voisines, survie avec 2 ou 3. C'est la seule acceptée à l'import RLE.</p>
+    <h3>Ce que l'on observe</h3>
+    <ul>
+      <li><strong>Structures stables</strong> : le bloc, carré de 2 × 2, ne change jamais.</li>
+      <li><strong>Oscillateurs</strong> : le clignotant, trois cellules en ligne, alterne entre deux formes ; le pulsar revient à sa forme toutes les 3 générations.</li>
+      <li><strong>Vaisseaux</strong> : le planeur se reconstitue une case plus loin en diagonale toutes les 4 générations.</li>
+      <li><strong>Canons</strong> : le canon à planeurs de Gosper émet un nouveau planeur toutes les 30 générations, sans fin.</li>
+    </ul>
+    <h3>Pour aller plus loin</h3>
+    <ul class="rules-links">
+      <li><a href="https://fr.wikipedia.org/wiki/Jeu_de_la_vie" target="_blank" rel="noopener noreferrer">Jeu de la vie, sur Wikipédia</a><span class="visually-hidden"> (nouvel onglet)</span></li>
+      <li><a href="https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life" target="_blank" rel="noopener noreferrer" hreflang="en">Conway's Game of Life, sur Wikipédia en anglais</a><span class="visually-hidden"> (nouvel onglet)</span></li>
+    </ul>
+  </section>
+
+  <!-- Légende des boutons (une seule à la fois), remplie et placée par app.js -->
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+
+  <dialog id="settings-dialog" class="dialog" aria-labelledby="settings-title">
+    <form method="dialog" class="dialog-inner">
+      <header class="dialog-head">
+        <h2 id="settings-title">Réglages</h2>
+        <button class="dialog-close" value="close" aria-label="Fermer" title="Fermer (Échap)">×</button>
+      </header>
+      <fieldset class="setting">
+        <legend>Thème</legend>
+        <div class="segmented" role="radiogroup" aria-label="Thème">
+          <label><input type="radio" name="theme" value="auto"> Auto</label>
+          <label><input type="radio" name="theme" value="light"> Clair</label>
+          <label><input type="radio" name="theme" value="dark"> Sombre</label>
+        </div>
+        <p class="dialog-hint">Auto suit le réglage clair ou sombre du Mac. Raccourci : T.</p>
+      </fieldset>
+      <fieldset class="setting">
+        <legend>Sauvegarde automatique</legend>
+        <p id="settings-save-status" class="save-status"></p>
+        <p class="dialog-hint">La grille, la vue et les réglages sont enregistrés dans ce navigateur et retrouvés à la prochaine ouverture. Le compteur, l'historique, le graphique, la sélection et le presse-papiers ne le sont pas.</p>
+        <div class="dialog-actions start" id="forget-row">
+          <button id="forget-save" class="btn" type="button">Oublier la sauvegarde</button>
+        </div>
+        <div class="confirm" id="forget-confirm" hidden>
+          <span>Supprimer la sauvegarde ? La grille et les réglages en cours ne changent pas.</span>
+          <span class="confirm-actions">
+            <button id="forget-no" class="btn" type="button">Annuler</button>
+            <button id="forget-yes" class="btn btn-danger" type="button">Oublier</button>
+          </span>
+        </div>
+      </fieldset>
+    </form>
+  </dialog>
+
+  <dialog id="rle-dialog" class="dialog" aria-labelledby="rle-title">
+    <form method="dialog" class="dialog-inner">
+      <header class="dialog-head">
+        <h2 id="rle-title">Importer un motif RLE</h2>
+        <button class="dialog-close" value="close" aria-label="Fermer" title="Fermer (Échap)">×</button>
+      </header>
+      <section id="rle-import-pane">
+        <p class="dialog-hint">Collez un motif au format RLE, par exemple copié depuis LifeWiki. Seule la règle B3/S23 est acceptée.</p>
+        <label class="visually-hidden" for="rle-input">Texte RLE à importer</label>
+        <textarea id="rle-input" rows="10" spellcheck="false" autocomplete="off" placeholder="x = 3, y = 3, rule = B3/S23&#10;bo$2bo$3o!"></textarea>
+        <p id="rle-error" class="dialog-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button id="rle-import-btn" class="btn btn-primary" type="button">Importer</button>
+        </div>
+      </section>
+      <section id="rle-export-pane" hidden>
+        <p id="rle-export-info" class="dialog-hint"></p>
+        <label class="visually-hidden" for="rle-output">Texte RLE exporté</label>
+        <textarea id="rle-output" rows="10" spellcheck="false" readonly></textarea>
+        <p id="rle-copy-status" class="dialog-status" role="status"></p>
+        <div class="dialog-actions">
+          <button id="rle-copy" class="btn" type="button">Copier</button>
+          <button id="rle-download" class="btn btn-primary" type="button">Télécharger .rle</button>
+        </div>
+      </section>
+    </form>
+  </dialog>
+
+  <!-- Scripts classiques (pas de modules) : fonctionne en ouvrant le fichier directement -->
+  <script src="src/engine.js"></script>
+  <script src="src/patterns.js"></script>
+  <script src="src/camera.js"></script>
+  <script src="src/transform.js"></script>
+  <script src="src/rle.js"></script>
+  <script src="src/tools.js"></script>
+  <script src="src/ages.js"></script>
+  <script src="src/history.js"></script>
+  <script src="src/detection.js"></script>
+  <script src="src/sampling.js"></script>
+  <script src="src/theme.js"></script>
+  <script src="src/persistence.js"></script>
+  <script src="src/saveScheduler.js"></script>
+  <script src="src/fullscreen.js"></script>
+  <script src="src/controller.js"></script>
+  <script src="src/renderer.js"></script>
+  <script src="src/minimap.js"></script>
+  <script src="src/tooltips.js"></script>
+  <script src="src/touch.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>

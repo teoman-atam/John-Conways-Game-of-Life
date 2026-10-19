@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tests — Jeu de la vie</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f7f4;
+      --fg: #1d2127;
+      --muted: #6b7280;
+      --ok: #15803d;
+      --ko: #b91c1c;
+      --line: #e3e3de;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #111317; --fg: #e8e9ec; --muted: #9aa0aa; --ok: #4ade80; --ko: #f87171; --line: #23262d; }
+    }
+    body { margin: 0; padding: 24px; background: var(--bg); color: var(--fg);
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    #summary { font-size: 16px; font-weight: 600; margin: 12px 0 20px; }
+    #summary.ok { color: var(--ok); }
+    #summary.ko { color: var(--ko); }
+    h2 { font-size: 14px; margin: 20px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { padding: 4px 0; border-bottom: 1px solid var(--line); }
+    li.ok::before { content: "✓ "; color: var(--ok); font-weight: 700; }
+    li.ko::before { content: "✗ "; color: var(--ko); font-weight: 700; }
+    .error { color: var(--ko); font-family: ui-monospace, Menlo, monospace; font-size: 12px; margin-left: 18px; }
+  </style>
+</head>
+<body>
+  <h1>Tests du jeu de la vie</h1>
+  <div>Ouvrir ce fichier par double-clic suffit : tous les tests s'exécutent au chargement.</div>
+  <div id="summary">Exécution…</div>
+  <div id="results"></div>
+
+  <!-- Liste lue aussi par tests/run-node.js : garder une balise par ligne -->
+  <script src="harness.js"></script>
+  <script src="../src/engine.js"></script>
+  <script src="../src/patterns.js"></script>
+  <script src="../src/camera.js"></script>
+  <script src="../src/transform.js"></script>
+  <script src="../src/rle.js"></script>
+  <script src="../src/tools.js"></script>
+  <script src="../src/ages.js"></script>
+  <script src="../src/history.js"></script>
+  <script src="../src/detection.js"></script>
+  <script src="../src/sampling.js"></script>
+  <script src="../src/theme.js"></script>
+  <script src="../src/persistence.js"></script>
+  <script src="../src/saveScheduler.js"></script>
+  <script src="../src/fullscreen.js"></script>
+  <script src="../src/controller.js"></script>
+  <script src="../src/renderer.js"></script>
+  <script src="../src/minimap.js"></script>
+  <script src="../src/tooltips.js"></script>
+  <script src="../src/touch.js"></script>
+  <script src="render-scenarios.js"></script>
+  <script src="fixtures/render-lot-a.js"></script>
+  <script src="regression-scenarios.js"></script>
+  <script src="fixtures/avant-minimap-legendes.js"></script>
+  <script src="engine.test.js"></script>
+  <script src="camera.test.js"></script>
+  <script src="controller.test.js"></script>
+  <script src="transform.test.js"></script>
+  <script src="rle.test.js"></script>
+  <script src="tools.test.js"></script>
+  <script src="editing.test.js"></script>
+  <script src="ages.test.js"></script>
+  <script src="history.test.js"></script>
+  <script src="detection.test.js"></script>
+  <script src="sampling.test.js"></script>
+  <script src="renderer.test.js"></script>
+  <script src="analysis.test.js"></script>
+  <script src="theme.test.js"></script>
+  <script src="persistence.test.js"></script>
+  <script src="saveScheduler.test.js"></script>
+  <script src="fullscreen.test.js"></script>
+  <script src="comfort.test.js"></script>
+  <script src="minimap.test.js"></script>
+  <script src="tooltips.test.js"></script>
+  <script src="regression.test.js"></script>
+  <script src="mobile.test.js"></script>
+  <script src="rules.test.js"></script>
+
+  <script>
+    (function () {
+      var report = LifeTests.run();
+      var summary = document.getElementById('summary');
+      summary.textContent = report.total + ' tests exécutés, ' + report.passed + ' réussis, ' + report.failed + ' échoués.';
+      summary.className = report.failed === 0 ? 'ok' : 'ko';
+      var container = document.getElementById('results');
+      var list = null, lastSuite = null;
+      report.results.forEach(function (r) {
+        if (r.suite !== lastSuite) {
+          var h = document.createElement('h2');
+          h.textContent = r.suite;
+          container.appendChild(h);
+          list = document.createElement('ul');
+          container.appendChild(list);
+          lastSuite = r.suite;
+        }
+        var li = document.createElement('li');
+        li.className = r.ok ? 'ok' : 'ko';
+        li.textContent = r.name;
+        if (!r.ok) {
+          var err = document.createElement('div');
+          err.className = 'error';
+          err.textContent = r.error;
+          li.appendChild(err);
+        }
+        list.appendChild(li);
+      });
+      document.title = (report.failed === 0 ? '✓ ' : '✗ ') + document.title;
+      window.testReport = report;
+    })();
+  </script>
+</body>
+</html>
