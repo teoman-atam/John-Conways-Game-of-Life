@@ -9,13 +9,13 @@
   const camera = (root.Life && root.Life.camera) || require('./camera.js');
   const transform = (root.Life && root.Life.transform) || require('./transform.js');
 
-  // Outils exclusifs choisis par l'utilisateur
-  const TOOLS = { MOVE: 'move', PENCIL: 'pencil', SELECT: 'select' };
+  // Outils exclusifs choisis par l'utilisateur (la Gomme s'ajoute aux trois outils du lot A)
+  const TOOLS = { MOVE: 'move', PENCIL: 'pencil', SELECT: 'select', ERASER: 'eraser' };
   // Mode pose : actif après le choix d'un motif, Cmd+V ou un import RLE
   const PLACE = 'place';
 
   function isTool(name) {
-    return name === TOOLS.MOVE || name === TOOLS.PENCIL || name === TOOLS.SELECT;
+    return name === TOOLS.MOVE || name === TOOLS.PENCIL || name === TOOLS.SELECT || name === TOOLS.ERASER;
   }
 
   /*
@@ -60,6 +60,7 @@
    *   { type: 'pan', dx, dy }                  Déplacer, ou pose (la vue suit)
    *   { type: 'paint', mode, cells }           Crayon : mode 'draw' ou 'erase'
    *   { type: 'select', rect }                 Sélection en cours de tracé
+   *   { type: 'erase', from, to }              Gomme : trait de la cellule from à la cellule to
    */
   function createGesture(threshold) {
     const tracker = camera.createDragTracker(threshold);
@@ -85,6 +86,13 @@
       }
       if (g.tool === TOOLS.SELECT) {
         return { type: 'select', rect: transform.rectFromCells(g.start, cell) };
+      }
+      if (g.tool === TOOLS.ERASER) {
+        // Trait depuis la dernière cellule effacée (depuis l'appui au premier déplacement)
+        if (!first && cell.x === g.last.x && cell.y === g.last.y) return null;
+        const from = first ? g.start : g.last;
+        g.last = cell;
+        return { type: 'erase', from: from, to: cell };
       }
       if (delta.dx === 0 && delta.dy === 0) return null;
       return { type: 'pan', dx: delta.dx, dy: delta.dy };

@@ -40,6 +40,9 @@
   --tooltip-muted: #b4b9c0;
   --tooltip-border: #1b1f24;
   --tooltip-key: rgba(255, 255, 255, 0.12);
+  /* Contour de la gomme : trait coloré et liseré clair, visibles sur cases vides comme pleines */
+  --eraser-outline: #d6336c;
+  --eraser-halo: rgba(255, 255, 255, 0.85);
 }
 
 /* Thème sombre : choisi dans les Réglages, ou système sombre en mode Auto (attribut posé par la page) */
@@ -81,6 +84,8 @@
   --tooltip-muted: #9aa1ab;
   --tooltip-border: #3a404a;
   --tooltip-key: rgba(255, 255, 255, 0.08);
+  --eraser-outline: #ff8fab;
+  --eraser-halo: rgba(0, 0, 0, 0.7);
 }
 
 :root[data-theme="light"] { color-scheme: light; }
@@ -536,6 +541,7 @@ kbd {
 #board[data-cursor="grabbing"] { cursor: grabbing; }
 #board[data-cursor="select"] { cursor: crosshair; }
 #board[data-cursor="place"] { cursor: copy; }
+#board[data-cursor="eraser"] { cursor: crosshair; }
 #board[data-cursor="pencil"] {
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path d='M3 21l1.6-5.4L16.2 4l3.8 3.8L8.4 19.4z' fill='white' stroke='black' stroke-width='1.4' stroke-linejoin='round'/><path d='M13.6 6.6l3.8 3.8' stroke='black' stroke-width='1.4'/></svg>") 3 21, crosshair;
 }
@@ -635,6 +641,33 @@ kbd {
 }
 
 .placebar-hint { color: var(--muted); }
+
+/* Gomme : contour du disque effacé, sur son propre calque (jamais dans le canvas ni dans l'image exportée) */
+.eraser-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 1.5px solid var(--eraser-outline);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--eraser-halo), inset 0 0 0 1px var(--eraser-halo);
+  pointer-events: none;
+}
+
+/* Gomme plus petite que 4 px à l'écran : repère de taille fixe */
+.eraser-cursor.is-marker { border-width: 2px; }
+.eraser-cursor[hidden] { display: none; }
+
+/* Barre de réglage de la gomme, sous la barre d'outils quand la Gomme est choisie */
+.eraser-bar { gap: 8px; padding-right: 10px; }
+.eraser-bar[hidden] { display: none; }
+.eraser-bar input[type="range"] { width: 130px; }
+
+.eraser-size {
+  width: 64px;
+  min-height: 26px;
+  padding: 2px 6px;
+  font-size: 12.5px;
+}
 
 /* Coordonnées de la cellule survolée */
 .coords {
@@ -898,6 +931,79 @@ kbd {
 .dialog-actions .btn { width: auto; padding: 5px 14px; }
 .dialog-actions.start { justify-content: flex-start; }
 
+/* Fenêtre d'import d'image : image d'origine et résultat côte à côte, réglages dessous */
+.image-dialog { width: min(720px, calc(100vw - 32px)); }
+
+.image-previews {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.image-previews figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+#image-thumb, #image-preview {
+  display: block;
+  width: 100%;
+  height: 220px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--cell-dead);
+}
+
+#image-preview { image-rendering: pixelated; }
+
+.image-previews figcaption {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-previews figcaption strong { color: var(--text); font-weight: 600; }
+
+.image-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.image-field { grid-template-columns: 76px 1fr 62px; }
+.image-field[hidden] { display: none; }
+
+.image-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.image-privacy { font-size: 12px; }
+
+/* Fichier glissé au-dessus de la grille */
+.stage.is-dropping::after {
+  content: "Déposez l'image pour l'importer";
+  position: absolute;
+  inset: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--accent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 80%, transparent);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
 /* Fenêtre Réglages */
 .setting {
   margin: 0;
@@ -1049,6 +1155,8 @@ button { -webkit-tap-highlight-color: transparent; }
 /* Fenêtre étroite : panneau au-dessus de la grille, libellés des outils masqués */
 @media (max-width: 720px) {
   .rules-toggle-label { display: inline; }
+  .image-previews { grid-template-columns: 1fr; }
+  #image-thumb, #image-preview { height: 160px; }
   .app { flex-direction: column; }
   .panel {
     flex: 0 0 auto;

@@ -12,6 +12,9 @@
  * Champ facultatif ajouté sans changer schemaVersion : settings.minimapVisible. Absent (sauvegarde
  * plus ancienne), il prend sa valeur par défaut ; il est passé et relu à part, dans `optional`,
  * pour que `settings` garde exactement les mêmes champs qu'avant.
+ * Second champ facultatif, entier : settings.eraserSize (diamètre de la gomme, 1 à 512). Il est
+ * passé dans `optional` comme le premier, et relu à part dans `value.eraserSize` (taille par défaut
+ * s'il est absent), pour que `optional` relu garde lui aussi exactement ses champs d'avant.
  */
 (function (root) {
   'use strict';
@@ -21,6 +24,7 @@
   const transform = (root.Life && root.Life.transform) || require('./transform.js');
   const rle = (root.Life && root.Life.rle) || require('./rle.js');
   const theme = (root.Life && root.Life.theme) || require('./theme.js');
+  const eraserLib = (root.Life && root.Life.eraser) || require('./eraser.js');
 
   const SCHEMA_VERSION = 1;
   // Clé unique et préfixée : le stockage local est partagé par toutes les pages ouvertes en file://
@@ -29,12 +33,24 @@
   const BOOLEAN_SETTINGS = ['ageColors', 'autoPause', 'chartVisible', 'panelCollapsed'];
   // Réglages facultatifs (booléens) et leur valeur quand ils sont absents
   const OPTIONAL_DEFAULTS = { minimapVisible: true };
+  // Réglages facultatifs entiers : bornes et valeur quand ils sont absents
+  const OPTIONAL_INTEGERS = {
+    eraserSize: { min: eraserLib.ERASER_MIN_SIZE, max: eraserLib.ERASER_MAX_SIZE, fallback: eraserLib.ERASER_DEFAULT_SIZE },
+  };
 
-  // Ajoute à settings les réglages facultatifs fournis (booléens seulement)
+  function validInteger(name, value) {
+    const spec = OPTIONAL_INTEGERS[name];
+    return Number.isInteger(value) && value >= spec.min && value <= spec.max;
+  }
+
+  // Ajoute à settings les réglages facultatifs fournis (booléens, puis entiers dans leurs bornes)
   function addOptional(settings, optional) {
     if (!optional) return settings;
     for (const name of Object.keys(OPTIONAL_DEFAULTS)) {
       if (typeof optional[name] === 'boolean') settings[name] = optional[name];
+    }
+    for (const name of Object.keys(OPTIONAL_INTEGERS)) {
+      if (validInteger(name, optional[name])) settings[name] = optional[name];
     }
     return settings;
   }
@@ -115,6 +131,15 @@
       }
       optional[name] = s[name] === undefined ? OPTIONAL_DEFAULTS[name] : s[name];
     }
+    // Réglages facultatifs entiers : absents, valeur par défaut ; présents, entiers dans leurs bornes
+    const intOptional = {};
+    for (const name of Object.keys(OPTIONAL_INTEGERS)) {
+      const spec = OPTIONAL_INTEGERS[name];
+      if (s[name] !== undefined && !validInteger(name, s[name])) {
+        return failure('champ invalide : settings.' + name + ' doit être un entier de ' + spec.min + ' à ' + spec.max);
+      }
+      intOptional[name] = s[name] === undefined ? spec.fallback : s[name];
+    }
 
     // Caméra
     const c = data.camera;
@@ -164,6 +189,7 @@
         },
         savedAt: typeof data.savedAt === 'number' ? data.savedAt : null,
         optional: optional,
+        eraserSize: intOptional.eraserSize,
       },
     };
   }
@@ -174,10 +200,14 @@
    */
   function readOptional(text) {
     const out = Object.assign({}, OPTIONAL_DEFAULTS);
+    for (const name of Object.keys(OPTIONAL_INTEGERS)) out[name] = OPTIONAL_INTEGERS[name].fallback;
     try {
       const s = JSON.parse(text).settings;
       for (const name of Object.keys(OPTIONAL_DEFAULTS)) {
         if (s && typeof s[name] === 'boolean') out[name] = s[name];
+      }
+      for (const name of Object.keys(OPTIONAL_INTEGERS)) {
+        if (s && validInteger(name, s[name])) out[name] = s[name];
       }
     } catch (err) {
       // texte illisible : valeurs par défaut
@@ -219,6 +249,7 @@
     SCHEMA_VERSION: SCHEMA_VERSION,
     STORAGE_KEY: STORAGE_KEY,
     OPTIONAL_DEFAULTS: OPTIONAL_DEFAULTS,
+    OPTIONAL_INTEGERS: OPTIONAL_INTEGERS,
     serialize: serialize,
     deserialize: deserialize,
     readOptional: readOptional,

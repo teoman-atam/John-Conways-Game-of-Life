@@ -47,6 +47,8 @@
     { action: 'fullscreen', keys: ['e'], description: 'Entrer dans le plein écran ou en sortir' },
     { action: 'panel', keys: ['l'], description: 'Replier ou déplier le panneau' },
     { action: 'minimap', keys: ['m'], handledBy: 'app', description: 'Afficher ou masquer la mini-carte' },
+    { action: 'tool-eraser', keys: ['x'], handledBy: 'app', description: 'Outil Gomme (⌘X reste « couper »)' },
+    { action: 'image-import', keys: ['i'], handledBy: 'app', description: 'Importer une image' },
   ];
 
   function findShortcut(action) {
@@ -184,13 +186,33 @@
 
   const BUTTON_ACTIONS = Object.keys(BUTTONS);
 
+  function sizeLabel(n) {
+    return 'diamètre ' + formatInt(n) + (n === 1 ? ' cellule' : ' cellules');
+  }
+
+  /*
+   * Boutons ajoutés avec l'import d'image et la gomme : même mécanisme de légende, liste à part
+   * (BUTTON_ACTIONS reste la liste figée des boutons du lot des légendes, vérifiée par ses tests).
+   */
+  const ADDED_BUTTONS = {
+    'tool-eraser': { shortcut: 'tool-eraser',
+      label: function (s) {
+        const active = !s.placing && s.tool === 'eraser';
+        return 'Gomme' + (active ? ', outil actif' : '') + ', ' + sizeLabel(s.eraserSize || 3);
+      } },
+    'image-import': { shortcut: 'image-import', label: constant('Importer une image'),
+      disabled: function (s) { return !!s.jumping; }, reason: constant('Indisponible pendant le saut') },
+  };
+
+  const ADDED_BUTTON_ACTIONS = Object.keys(ADDED_BUTTONS);
+
   /*
    * Légende d'un bouton dans l'état courant. state : état du contrôleur (getState) complété par
    * l'interface : { fullscreen, minimapVisible, isMac }. Renvoie { label, shortcut (touches, ou
    * null), ariaShortcut, disabled, disabledReason (ou null), detail ({ label, shortcut } ou null) }.
    */
   function getTooltip(actionId, state) {
-    const b = BUTTONS[actionId];
+    const b = BUTTONS[actionId] || ADDED_BUTTONS[actionId];
     if (!b) throw new Error('Bouton sans légende : "' + actionId + '"');
     const s = state || {};
     const name = typeof b.shortcut === 'function' ? b.shortcut(s) : b.shortcut;
@@ -362,6 +384,7 @@
     SHOW_DELAY_MS: SHOW_DELAY_MS,
     SHORTCUTS: SHORTCUTS,
     BUTTON_ACTIONS: BUTTON_ACTIONS,
+    ADDED_BUTTON_ACTIONS: ADDED_BUTTON_ACTIONS,
     findShortcut: findShortcut,
     shortcutFor: shortcutFor,
     matchShortcut: matchShortcut,

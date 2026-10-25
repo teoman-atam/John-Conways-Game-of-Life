@@ -24,6 +24,8 @@
   const themeLib = (root.Life && root.Life.theme) || require('./theme.js');
   const persistence = (root.Life && root.Life.persistence) || require('./persistence.js');
   const saveSchedulerLib = (root.Life && root.Life.saveScheduler) || require('./saveScheduler.js');
+  const eraserLib = (root.Life && root.Life.eraser) || require('./eraser.js');
+  const imageConvert = (root.Life && root.Life.imageConvert) || require('./imageConvert.js');
 
   /*
    * Plafond de sécurité : nombre maximal de cellules vivantes. Si une génération
@@ -114,6 +116,14 @@
     let chartVisible = false;
     let jumpCount = DEFAULT_JUMP;
     let jump = null; // saut en cours : { total, done }
+
+    // Gomme : diamètre en cellules
+    let eraserSize = eraserLib.ERASER_DEFAULT_SIZE;
+
+    // Import d'image : décodage injecté (options.decodeImage(file) → thenable de { width, height, … }) ;
+    // conversion en attente de validation : { bitmap, mosaic, count, width, height }. Aucune image n'est gardée.
+    const decodeImage = typeof opts.decodeImage === 'function' ? opts.decodeImage : null;
+    let pendingImage = null;
 
     // Confort
     let themePreference = 'auto';
@@ -405,6 +415,115 @@
       return next !== null;
     }
 
+    /*
+     * Gomme : efface le long du trait de la cellule from à la cellule to (from = to : un tampon),
+     * uniquement en pause. Comme le Crayon, chaque effacement est une édition : compteur à 0,
+     * historique, graphique et détection vidés ; un geste complet n'en laisse donc qu'une.
+     */
+    function eraseAlong(from, to) {
+      if (busy()) return false;
+      const keys = eraserLib.erasedKeys(cells, from, to, eraserSize);
+      if (keys.length === 0) return false;
+      const next = new Set(cells);
+      for (const k of keys) next.delete(k);
+      setEditedCells(next);
+      return true;
+    }
+
+    function setEraserSize(value) {
+      eraserSize = eraserLib.clampSize(value);
+      return eraserSize;
+    }
+
+    // --- Import d'image ---
+
+    /*
+     * Ouverture d'un fichier image, en pause seulement : la lecture est d'abord mise en pause, un saut
+     * refuse l'import. Le fichier est vérifié (format, 20 Mo, HEIC), puis décodé par options.decodeImage.
+     * done({ ok: true, image }) ou done({ ok: false, error }) ; l'erreur s'affiche aussi en message.
+     * La grille n'est jamais modifiée ici.
+     */
+    function openImageFile(file, done) {
+      const finish = typeof done === 'function' ? done : function () {};
+      const refuse = function (text) {
+        setMessage(text);
+        finish({ ok: false, error: text });
+      };
+      if (jump) return refuse('Import d\'image impossible pendant un saut : annulez-le ou attendez sa fin.');
+      pause();
+      const check = imageConvert.checkImageFile(file);
+      if (!check.ok) return refuse(check.error);
+      if (!decodeImage) return refuse('Ce navigateur ne permet pas de lire les images.');
+      const unreadable = function () {
+        refuse('L\'image « ' + ((file && file.name) || '') + ' » n\'a pas pu être lue : le fichier est peut-être endommagé, ' +
+          'ou ce n\'est pas une vraie image. Formats acceptés : PNG, JPEG, WebP et GIF.');
+      };
+      let pending;
+      try {
+        pending = decodeImage(file);
+      } catch (err) {
+        return unreadable();
+      }
+      if (!pending || typeof pending.then !== 'function') return unreadable();
+      pending.then(function (image) {
+        if (!image || !(image.width > 0) || !(image.height > 0)) return unreadable();
+        finish({ ok: true, image: image });
+      }, unreadable);
+    }
+
+    /*
+     * Aperçu : conversion de l'image réduite (objet de forme ImageData) selon les réglages
+     * { mode, threshold, brightness, invert, mosaic }. Le résultat attend la validation.
+     * Renvoie { count, overCap, width, height, threshold, ms, bitmap }.
+     */
+    function previewImage(pixels, options) {
+      const o = options || {};
+      const t0 = clock ? clock() : 0;
+      const res = imageConvert.convert(pixels, o);
+      const mosaic = !!o.mosaic;
+      const count = imageConvert.estimate(res.bitmap, mosaic);
+      const size = imageConvert.gridSize(res.bitmap, mosaic);
+      const ms = clock ? clock() - t0 : null;
+      pendingImage = { bitmap: res.bitmap, mosaic: mosaic, count: count, width: size.width, height: size.height };
+      return { count: count, overCap: count > maxLiveCells, width: size.width, height: size.height,
+        threshold: res.threshold, ms: ms, bitmap: res.bitmap };
+    }
+
+    /*
+     * Validation. replace : le résultat remplace toute la grille, centré sur le centre de la vue, en pause,
+     * avec toutes les règles d'édition (compteur à 0, âges à 1, historique, graphique et détection vidés),
+     * puis la vue est recadrée comme avec Recentrer. Sinon : mode pose, comme un motif.
+     * Refusée au-delà du plafond, sans cellule vivante, ou pendant un saut. Aucun démarrage automatique.
+     */
+    function confirmImageImport(replace) {
+      if (!pendingImage) return { ok: false, error: 'Aucune image à importer.' };
+      if (jump) return { ok: false, error: 'Import d\'image impossible pendant un saut.' };
+      const p = pendingImage;
+      if (p.count > maxLiveCells) {
+        return { ok: false, error: 'Trop de cellules : ' + formatInt(p.count) + ', au-delà du plafond de ' + formatInt(maxLiveCells) +
+          ' (MAX_LIVE_CELLS). Réduisez la largeur ou changez de mode.' };
+      }
+      if (p.count === 0) return { ok: false, error: 'L\'image ne donne aucune cellule vivante : changez le seuil, le mode ou Inverser.' };
+      const shape = { cells: imageConvert.toCells(p.bitmap, p.mosaic), width: p.width, height: p.height };
+      pendingImage = null;
+      if (replace) {
+        const center = camera.centerCell(cam);
+        selection = null;
+        placing = null;
+        replaceCells(transform.placeShape(shape, center.x - Math.floor(shape.width / 2), center.y - Math.floor(shape.height / 2)));
+        recenter();
+      } else {
+        enterPlacing(shape, 'Image');
+      }
+      return { ok: true, count: p.count, width: shape.width, height: shape.height };
+    }
+
+    function cancelImageImport() {
+      const had = pendingImage !== null;
+      pendingImage = null;
+      return had;
+    }
+
     // --- Outils ---
 
     // Choisir un outil quitte le mode pose
@@ -679,6 +798,7 @@
       if (action.type === 'pan') panBy(action.dx, action.dy);
       else if (action.type === 'paint') paint(action.mode, action.cells);
       else if (action.type === 'select' && !running) selection = action.rect;
+      else if (action.type === 'erase') eraseAlong(action.from, action.to);
     }
 
     function pointerDown(sx, sy) {
@@ -706,6 +826,7 @@
         if (result.tool === TOOLS.PENCIL) toggleCell(result.cell.x, result.cell.y);
         else if (result.tool === tools.PLACE) placeAt(result.cell.x, result.cell.y);
         else if (result.tool === TOOLS.SELECT) clearSelection();
+        else if (result.tool === TOOLS.ERASER) eraseAlong(result.cell, result.cell);
       }
       return result.kind;
     }
@@ -1034,6 +1155,9 @@
         jumping: jump ? { done: jump.done, total: jump.total } : null,
         theme: themePreference,
         panelCollapsed: panelCollapsed,
+        eraserSize: eraserSize,
+        imageImport: pendingImage ? { count: pendingImage.count, overCap: pendingImage.count > maxLiveCells,
+          width: pendingImage.width, height: pendingImage.height, mosaic: pendingImage.mosaic } : null,
         save: { status: saveStatus, savedAt: savedAt },
         population: {
           length: population.length(),
@@ -1103,6 +1227,11 @@
       restore: restore,
       flushSave: flushSave,
       forgetSave: forgetSave,
+      setEraserSize: setEraserSize,
+      openImageFile: openImageFile,
+      previewImage: previewImage,
+      confirmImageImport: confirmImageImport,
+      cancelImageImport: cancelImageImport,
     };
   }
 

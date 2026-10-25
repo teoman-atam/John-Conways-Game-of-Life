@@ -100,6 +100,7 @@
     <main class="stage" id="stage">
       <canvas id="board" aria-label="Grille du jeu de la vie"></canvas>
       <canvas id="overlay" aria-hidden="true"></canvas>
+      <div id="eraser-cursor" class="eraser-cursor" aria-hidden="true" hidden></div>
 
       <div class="hud">
         <div class="toolbar" role="toolbar" aria-label="Outils d'édition">
@@ -116,28 +117,31 @@
               <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="9" stroke-dasharray="2 1.6"/></svg>
               <span>Sélection</span><kbd>S</kbd>
             </button>
+            <button class="tool" type="button" data-tool="eraser" data-action="tool-eraser" aria-pressed="false">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8.6 3.2a1.3 1.3 0 0 1 1.8 0l2.4 2.4a1.3 1.3 0 0 1 0 1.8L7.3 12.9H4.9L2.8 10.8a1.3 1.3 0 0 1 0-1.8zM5.9 5.9l4.2 4.2M7.3 12.9h6"/></svg>
+              <span>Gomme</span><kbd>X</kbd>
+            </button>
           </div>
           <div class="tool-group" role="group" aria-label="Sélection et presse-papiers">
-            <button id="copy" class="tool" type="button" data-action="copy" aria-disabled="true">
+            <button id="copy" class="tool icon" type="button" data-action="copy" aria-disabled="true" aria-label="Copier la sélection">
               <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/></svg>
-              <span>Copier</span>
             </button>
-            <button id="cut" class="tool" type="button" data-action="cut" aria-disabled="true">
+            <button id="cut" class="tool icon" type="button" data-action="cut" aria-disabled="true" aria-label="Couper la sélection">
               <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="4.5" cy="11.5" r="2"/><circle cx="11.5" cy="11.5" r="2"/><path d="M6 10 12.5 2.5M10 10 3.5 2.5"/></svg>
-              <span>Couper</span>
             </button>
-            <button id="paste" class="tool" type="button" data-action="paste" aria-disabled="true">
+            <button id="paste" class="tool icon" type="button" data-action="paste" aria-disabled="true" aria-label="Coller, puis cliquer sur la grille pour poser">
               <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3" width="9" height="11.5" rx="1"/><path d="M6 3V1.8h4V3"/></svg>
-              <span>Coller</span>
             </button>
-            <button id="delete" class="tool" type="button" data-action="delete" aria-disabled="true">
+            <button id="delete" class="tool icon" type="button" data-action="delete" aria-disabled="true" aria-label="Supprimer les cellules de la sélection">
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9"/></svg>
-              <span>Supprimer</span>
             </button>
           </div>
           <div class="tool-group" role="group" aria-label="Vue">
             <button id="recenter" class="tool icon" type="button" data-action="recenter" aria-label="Recentrer sur les cellules vivantes">
               <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="4.5"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3"/></svg>
+            </button>
+            <button id="image-import" class="tool icon" type="button" data-action="image-import" aria-label="Importer une image">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10.5" rx="1.5"/><circle cx="5.3" cy="6.4" r="1.2"/><path d="m2 12.3 3.6-3.6 2.4 2.4 2.2-2.2 4.2 4.2"/></svg>
             </button>
             <button id="export" class="tool icon" type="button" data-action="export" aria-label="Enregistrer l'image de la grille (PNG)">
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M5 7l3 3 3-3M2.5 11.5v2h11v-2"/></svg>
@@ -177,6 +181,15 @@
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8h13M4 6l4-3.5L12 6zM4 10l4 3.5 4-3.5z"/></svg>
           </button>
           <button id="place-done" class="tool" type="button" data-action="place-done"><span>Terminer</span><kbd>Échap</kbd></button>
+        </div>
+
+        <div class="placebar eraser-bar" id="eraser-bar" role="group" aria-label="Taille de la gomme" hidden>
+          <span class="placebar-label">Gomme</span>
+          <label class="visually-hidden" for="eraser-range">Diamètre de la gomme, échelle logarithmique de 1 à 512 cellules</label>
+          <input id="eraser-range" type="range" min="0" max="1000" step="1" value="176">
+          <label class="visually-hidden" for="eraser-size">Diamètre de la gomme en cellules, de 1 à 512</label>
+          <input id="eraser-size" class="input eraser-size" type="number" min="1" max="512" step="1" value="3" inputmode="numeric">
+          <span class="placebar-hint">cellules · ⌥ + molette</span>
         </div>
       </div>
 
@@ -245,6 +258,61 @@
       <li><a href="https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life" target="_blank" rel="noopener noreferrer" hreflang="en">Conway's Game of Life, sur Wikipédia en anglais</a><span class="visually-hidden"> (nouvel onglet)</span></li>
     </ul>
   </section>
+
+  <!-- Import d'image : sélecteur de fichier (bouton, touche I) et fenêtre d'aperçu ; l'image reste dans le navigateur -->
+  <input id="image-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/heic,image/heif,.heic,.heif" hidden>
+  <dialog id="image-dialog" class="dialog image-dialog" aria-labelledby="image-title">
+    <form method="dialog" class="dialog-inner">
+      <header class="dialog-head">
+        <h2 id="image-title">Importer une image</h2>
+        <button class="dialog-close" value="cancel" aria-label="Annuler l'import" title="Annuler (Échap)">×</button>
+      </header>
+      <div class="image-previews">
+        <figure>
+          <img id="image-thumb" alt="Image d'origine">
+          <figcaption id="image-name">Image d'origine</figcaption>
+        </figure>
+        <figure>
+          <canvas id="image-preview" aria-label="Aperçu du résultat en cellules"></canvas>
+          <figcaption><strong id="image-count">0 cellule vivante</strong> <span id="image-grid"></span></figcaption>
+        </figure>
+      </div>
+      <div class="image-settings">
+        <div class="segmented" role="radiogroup" aria-label="Mode de conversion">
+          <label><input type="radio" name="image-mode" value="threshold" checked> Seuil</label>
+          <label><input type="radio" name="image-mode" value="dither"> Tramage</label>
+        </div>
+        <div class="field image-field" id="image-threshold-row">
+          <label for="image-threshold">Seuil</label>
+          <input id="image-threshold" type="range" min="0" max="255" step="1" value="128">
+          <output id="image-threshold-value" for="image-threshold">128</output>
+        </div>
+        <div class="field image-field" id="image-brightness-row" hidden>
+          <label for="image-brightness">Luminosité</label>
+          <input id="image-brightness" type="range" min="-100" max="100" step="1" value="0">
+          <output id="image-brightness-value" for="image-brightness">0</output>
+        </div>
+        <div class="field image-field">
+          <label for="image-width">Largeur</label>
+          <input id="image-width" type="range" min="20" max="1000" step="1" value="200">
+          <output id="image-width-value" for="image-width">200 px</output>
+        </div>
+        <div class="image-checks">
+          <label class="check"><input id="image-invert" type="checkbox"> Inverser</label>
+          <label class="check"><input id="image-mosaic" type="checkbox"> Mosaïque stable</label>
+          <label class="check"><input id="image-replace" type="checkbox" checked> Remplacer la grille actuelle</label>
+        </div>
+        <p id="image-mosaic-note" class="dialog-hint" hidden>Image figée : elle ne bougera pas tant que vous ne la perturbez pas (gomme, crayon).</p>
+        <p id="image-status" class="dialog-hint" aria-live="polite"></p>
+        <p id="image-error" class="dialog-error" role="alert"></p>
+        <p class="dialog-hint image-privacy">L'image reste dans ce navigateur : elle n'est ni envoyée, ni enregistrée. Seules les cellules obtenues entrent dans la grille.</p>
+      </div>
+      <div class="dialog-actions">
+        <button id="image-cancel" class="btn" type="button">Annuler</button>
+        <button id="image-confirm" class="btn btn-primary" type="button">Valider</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- Légende des boutons (une seule à la fois), remplie et placée par app.js -->
   <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
@@ -322,6 +390,8 @@
   <script src="src/detection.js"></script>
   <script src="src/sampling.js"></script>
   <script src="src/theme.js"></script>
+  <script src="src/eraser.js"></script>
+  <script src="src/imageConvert.js"></script>
   <script src="src/persistence.js"></script>
   <script src="src/saveScheduler.js"></script>
   <script src="src/fullscreen.js"></script>

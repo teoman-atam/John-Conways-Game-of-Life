@@ -93,6 +93,35 @@
     rulesToggle: $('rules-toggle'),
     rulesMenu: $('rules-menu'),
     rulesClose: $('rules-close'),
+    eraserBar: $('eraser-bar'),
+    eraserRange: $('eraser-range'),
+    eraserSize: $('eraser-size'),
+    eraserCursor: $('eraser-cursor'),
+    imageImport: $('image-import'),
+    imageFile: $('image-file'),
+    imageDialog: $('image-dialog'),
+    imageThumb: $('image-thumb'),
+    imageName: $('image-name'),
+    imagePreview: $('image-preview'),
+    imageCount: $('image-count'),
+    imageGrid: $('image-grid'),
+    imageModes: Array.prototype.slice.call(document.querySelectorAll('input[name="image-mode"]')),
+    imageThresholdRow: $('image-threshold-row'),
+    imageThreshold: $('image-threshold'),
+    imageThresholdValue: $('image-threshold-value'),
+    imageBrightnessRow: $('image-brightness-row'),
+    imageBrightness: $('image-brightness'),
+    imageBrightnessValue: $('image-brightness-value'),
+    imageWidth: $('image-width'),
+    imageWidthValue: $('image-width-value'),
+    imageInvert: $('image-invert'),
+    imageMosaic: $('image-mosaic'),
+    imageReplace: $('image-replace'),
+    imageMosaicNote: $('image-mosaic-note'),
+    imageStatus: $('image-status'),
+    imageError: $('image-error'),
+    imageCancel: $('image-cancel'),
+    imageConfirm: $('image-confirm'),
     actionButtons: Array.prototype.slice.call(document.querySelectorAll('[data-action]')),
   };
 
@@ -118,6 +147,30 @@
     panTo: function (x, y) { Life.minimap.centerViewOn(controller, x, y); },
   });
 
+  /*
+   * Décodage d'une image choisie, dans le navigateur seulement : élément <img> sur une adresse locale
+   * (objectURL), qui respecte l'orientation EXIF des photos de téléphone. Rien n'est envoyé ni stocké.
+   */
+  function decodeImageFile(file) {
+    return new Promise(function (resolve, reject) {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = function () {
+        if (!img.naturalWidth || !img.naturalHeight) {
+          URL.revokeObjectURL(url);
+          reject(new Error('image vide'));
+          return;
+        }
+        resolve({ img: img, url: url, width: img.naturalWidth, height: img.naturalHeight, name: file.name });
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('décodage impossible'));
+      };
+      img.src = url;
+    });
+  }
+
   // Le hasard est injecté ici : le contrôleur n'appelle jamais Math.random lui-même.
   // L'horloge réelle mesure le budget du saut et planifie la sauvegarde.
   // La case « Pause si état stable » est cochée au départ ; une sauvegarde peut la décocher.
@@ -127,13 +180,14 @@
     clock: function () { return performance.now(); },
     dateNow: function () { return Date.now(); },
     autoPause: ui.autoPause.checked,
-    // Chaque sauvegarde emporte aussi la visibilité de la mini-carte (champ facultatif)
+    // Chaque sauvegarde emporte aussi la visibilité de la mini-carte et la taille de la gomme (champs facultatifs)
     storage: rawStore ? Life.persistence.withOptionalSettings(rawStore, function () {
-      return { minimapVisible: minimap.isVisible() };
+      return { minimapVisible: minimap.isVisible(), eraserSize: controller.getState().eraserSize };
     }) : null,
     onCommand: function (name) {
       if (name === 'fullscreen') fullscreen.toggle();
     },
+    decodeImage: decodeImageFile,
   });
 
   // Plein écran de toute l'application ; le bouton suit l'état réel, quelle que soit la sortie
@@ -148,12 +202,15 @@
   // Plein écran indisponible (Safari sur iPhone) : le bouton est retiré de la barre
   ui.fullscreenToggle.hidden = !fullscreen.isSupported();
 
-  // Sauvegarde restaurée : la visibilité de la mini-carte aussi (absente d'une ancienne sauvegarde : visible)
+  // Sauvegarde restaurée : la visibilité de la mini-carte et la taille de la gomme aussi
+  // (absentes d'une ancienne sauvegarde : mini-carte visible, gomme de 3 cellules)
   if (controller.restore().status === 'restored') {
     try {
-      minimap.setVisible(Life.persistence.readOptional(rawStore.getItem(SAVE_KEY)).minimapVisible);
+      const optional = Life.persistence.readOptional(rawStore.getItem(SAVE_KEY));
+      minimap.setVisible(optional.minimapVisible);
+      controller.setEraserSize(optional.eraserSize);
     } catch (err) {
-      // Lecture impossible : mini-carte visible
+      // Lecture impossible : valeurs par défaut
     }
   }
   const renderer = Life.renderer.createRenderer(canvas, $('overlay'));
@@ -530,6 +587,12 @@
   canvas.addEventListener('wheel', function (e) {
     e.preventDefault();
     tooltipUi.dismiss();
+    // ⌥ + molette, la Gomme choisie : sa taille change, la vue ne zoome pas
+    const wheelState = controller.getState();
+    if (Life.eraser.wheelChangesSize(e, wheelState)) {
+      setEraserSize(Life.eraser.sizeAfterWheel(wheelState.eraserSize, e.deltaY, e.deltaMode));
+      return;
+    }
     if (gestureActive) return; // Safari : le pincement est déjà traité par gesturechange
     let delta = e.deltaY;
     if (e.deltaMode === 1) delta *= 16; // lignes
@@ -606,6 +669,14 @@
     // M : touche propre à l'interface, lue dans la table des raccourcis ; le contrôleur ne l'utilise pas
     if (Life.tooltips.matchShortcut('minimap', e.key, mods, isMac)) {
       toggleMinimap();
+      e.preventDefault();
+    } else if (Life.tooltips.matchShortcut('tool-eraser', e.key, mods, isMac)) {
+      // X : Gomme, touche libre du contrôleur ; ⌘X n'y correspond pas et reste « couper »
+      controller.setTool('eraser');
+      e.preventDefault();
+    } else if (Life.tooltips.matchShortcut('image-import', e.key, mods, isMac)) {
+      // I : choisir une image à importer (touche libre du contrôleur)
+      chooseImageFile();
       e.preventDefault();
     } else if (controller.handleShortcut(e.key, mods)) {
       e.preventDefault();
@@ -739,6 +810,16 @@
     const activeTool = state.placing ? '' : state.tool;
     if (changed('tool', activeTool)) {
       ui.toolButtons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.tool === activeTool)); });
+    }
+    // Barre de réglage de la gomme : visible quand la Gomme est l'outil choisi (hors pose)
+    const eraserOn = state.tool === 'eraser' && !state.placing;
+    if (changed('eraserBar', eraserOn)) {
+      ui.eraserBar.hidden = !eraserOn;
+      layoutDirty = true; // la barre peut repousser la mini-carte
+    }
+    if (changed('eraserSize', state.eraserSize)) {
+      if (document.activeElement !== ui.eraserSize) ui.eraserSize.value = String(state.eraserSize);
+      if (document.activeElement !== ui.eraserRange) ui.eraserRange.value = String(Life.eraser.sliderFromSize(state.eraserSize));
     }
     // Copier, Couper, Coller et Supprimer : aria-disabled, voir syncActionButtons
     if (changed('placing', state.placing ? state.placing.name : null)) {
@@ -1131,11 +1212,308 @@
     tooltipPlace = '';
   }
 
+  // --- Import d'image : bouton, touche I ou glisser-déposer ; fenêtre d'aperçu ---
+
+  // Réduction préalable de l'image source : au plus 2 000 px de large (la largeur réglable va jusqu'à 1 000)
+  const IMAGE_WORK_MAX = 2000;
+  const IMAGE_PREVIEW_DELAY_MS = 150;
+  let importImage = null; // { img, url, width, height, name, work }
+  let importTimer = null;
+  let thresholdAuto = true;
+  let importConfirmed = false;
+  const reduceCanvas = document.createElement('canvas');
+
+  // Pendant la simulation, le choix d'une image met d'abord en pause ; pendant un saut, il est refusé
+  function chooseImageFile() {
+    if (controller.getState().jumping) {
+      showToast('Import d\'image impossible pendant un saut : annulez-le ou attendez sa fin.', 5000);
+      return;
+    }
+    controller.pause();
+    ui.imageFile.value = '';
+    ui.imageFile.click();
+  }
+
+  function beginImageImport(file) {
+    controller.openImageFile(file, function (r) {
+      if (r.ok) openImageDialog(r.image);
+      // sinon : le contrôleur affiche le message, la grille n'a pas changé
+    });
+  }
+
+  ui.imageImport.addEventListener('click', chooseImageFile);
+  ui.imageFile.addEventListener('change', function () {
+    const file = ui.imageFile.files && ui.imageFile.files[0];
+    if (file) beginImageImport(file);
+  });
+
+  // Glisser-déposer d'un fichier image sur la grille
+  function dragHasFiles(e) {
+    return !!(e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0);
+  }
+  ['dragenter', 'dragover'].forEach(function (type) {
+    stage.addEventListener(type, function (e) {
+      if (!dragHasFiles(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      stage.classList.add('is-dropping');
+    });
+  });
+  stage.addEventListener('dragleave', function (e) {
+    if (!e.relatedTarget || !stage.contains(e.relatedTarget)) stage.classList.remove('is-dropping');
+  });
+  stage.addEventListener('drop', function (e) {
+    if (!dragHasFiles(e)) return;
+    e.preventDefault();
+    stage.classList.remove('is-dropping');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file && !ui.imageDialog.open) beginImageImport(file);
+  });
+  // Ailleurs dans la page, un fichier lâché n'ouvre pas l'image à la place de l'application
+  window.addEventListener('dragover', function (e) { if (dragHasFiles(e)) e.preventDefault(); });
+  window.addEventListener('drop', function (e) { if (dragHasFiles(e)) e.preventDefault(); });
+
+  function imageMode() {
+    for (const r of ui.imageModes) if (r.checked) return r.value;
+    return 'threshold';
+  }
+
+  function openImageDialog(image) {
+    closeImageResources();
+    importImage = image;
+    importConfirmed = false;
+    // Réduction par le canvas, lissage de haute qualité : une photo de 12 mégapixels ne fige pas l'interface
+    const t0 = performance.now();
+    const scale = Math.min(1, IMAGE_WORK_MAX / image.width);
+    const work = document.createElement('canvas');
+    work.width = Math.max(1, Math.round(image.width * scale));
+    work.height = Math.max(1, Math.round(image.height * scale));
+    const wctx = work.getContext('2d');
+    wctx.imageSmoothingEnabled = true;
+    wctx.imageSmoothingQuality = 'high';
+    wctx.drawImage(image.img, 0, 0, work.width, work.height);
+    importImage.work = work;
+    importImage.reduceMs = performance.now() - t0;
+    ui.imageThumb.src = image.url;
+    ui.imageName.textContent = (image.name || 'Image') + ' · ' + formatInt(image.width) + ' × ' + formatInt(image.height) + ' px';
+    // Réglages de départ : Seuil automatique (Otsu), 200 px de large, Remplacer coché
+    ui.imageModes.forEach(function (r) { r.checked = r.value === 'threshold'; });
+    thresholdAuto = true;
+    ui.imageBrightness.value = '0';
+    ui.imageWidth.value = String(Life.imageConvert.WIDTH_DEFAULT);
+    ui.imageInvert.checked = false;
+    ui.imageMosaic.checked = false;
+    ui.imageReplace.checked = true;
+    ui.imageDialog.showModal();
+    recomputeImagePreview();
+  }
+
+  function scheduleImagePreview() {
+    clearTimeout(importTimer);
+    importTimer = setTimeout(recomputeImagePreview, IMAGE_PREVIEW_DELAY_MS);
+  }
+
+  // Aperçu : réduction à la largeur choisie par le canvas, conversion par le contrôleur, temps mesuré
+  function recomputeImagePreview() {
+    clearTimeout(importTimer);
+    if (!importImage) return;
+    const mode = imageMode();
+    const t0 = performance.now();
+    const size = Life.imageConvert.targetSize(importImage.width, importImage.height, Number(ui.imageWidth.value));
+    reduceCanvas.width = size.width;
+    reduceCanvas.height = size.height;
+    const rctx = reduceCanvas.getContext('2d', { willReadFrequently: true });
+    rctx.clearRect(0, 0, size.width, size.height);
+    rctx.imageSmoothingEnabled = true;
+    rctx.imageSmoothingQuality = 'high';
+    rctx.drawImage(importImage.work, 0, 0, size.width, size.height);
+    const pixels = rctx.getImageData(0, 0, size.width, size.height);
+    const t1 = performance.now();
+    const r = controller.previewImage(pixels, {
+      mode: mode,
+      threshold: thresholdAuto ? undefined : Number(ui.imageThreshold.value),
+      brightness: Number(ui.imageBrightness.value),
+      invert: ui.imageInvert.checked,
+      mosaic: ui.imageMosaic.checked,
+    });
+    const t2 = performance.now();
+    if (mode === 'threshold' && thresholdAuto) ui.imageThreshold.value = String(r.threshold);
+    drawImagePreview(r.bitmap);
+    importImage.lastMs = { reduce: t1 - t0, convert: t2 - t1 };
+    // Textes : nombre de cellules en direct, grille, temps ; plafond ou image vide : Valider désactivé
+    ui.imageThresholdRow.hidden = mode !== 'threshold';
+    ui.imageBrightnessRow.hidden = mode !== 'dither';
+    ui.imageThresholdValue.textContent = ui.imageThreshold.value + (thresholdAuto ? ' (auto)' : '');
+    ui.imageBrightnessValue.textContent = (Number(ui.imageBrightness.value) > 0 ? '+' : '') + ui.imageBrightness.value;
+    ui.imageWidthValue.textContent = size.width + ' px';
+    ui.imageMosaicNote.hidden = !ui.imageMosaic.checked;
+    ui.imageCount.textContent = formatInt(r.count) + (r.count > 1 ? ' cellules vivantes' : ' cellule vivante');
+    ui.imageGrid.textContent = '· grille de ' + formatInt(r.width) + ' × ' + formatInt(r.height);
+    ui.imageStatus.textContent = 'Conversion en ' + Math.max(1, Math.round(t2 - t0)) + ' ms (réduction ' +
+      Math.round(t1 - t0) + ' ms, calcul ' + Math.round(t2 - t1) + ' ms).';
+    let error = '';
+    if (r.overCap) {
+      error = 'Trop de cellules : ' + formatInt(r.count) + ', au-delà du plafond de ' + formatInt(Life.controller.MAX_LIVE_CELLS) +
+        ' (MAX_LIVE_CELLS). Réduisez la largeur ou changez de mode.';
+    } else if (r.count === 0) {
+      error = 'L\'image ne donne aucune cellule vivante : changez le seuil, le mode ou Inverser.';
+    }
+    ui.imageError.textContent = error;
+    ui.imageConfirm.disabled = error !== '';
+  }
+
+  // Résultat en cellules : un pixel par cellule (la mosaïque est montrée par ses pixels d'origine)
+  function drawImagePreview(bitmap) {
+    const canvasEl = ui.imagePreview;
+    canvasEl.width = bitmap.width;
+    canvasEl.height = bitmap.height;
+    const pctx = canvasEl.getContext('2d');
+    const css = getComputedStyle(document.documentElement);
+    const live = Life.minimap.parseColor(css.getPropertyValue('--cell-live'));
+    const dead = Life.minimap.parseColor(css.getPropertyValue('--cell-dead'));
+    const img = pctx.createImageData(bitmap.width, bitmap.height);
+    for (let i = 0, j = 0; i < bitmap.alive.length; i++, j += 4) {
+      const c = bitmap.alive[i] ? live : dead;
+      img.data[j] = c[0];
+      img.data[j + 1] = c[1];
+      img.data[j + 2] = c[2];
+      img.data[j + 3] = 255;
+    }
+    pctx.putImageData(img, 0, 0);
+  }
+
+  // Libère l'image (adresse locale, élément, canvas réduits) : rien ne reste en mémoire après la fenêtre
+  function closeImageResources() {
+    clearTimeout(importTimer);
+    if (importImage) {
+      URL.revokeObjectURL(importImage.url);
+      importImage.img.removeAttribute('src');
+      if (importImage.work) importImage.work.width = 0;
+      importImage = null;
+    }
+    ui.imageThumb.removeAttribute('src');
+    ui.imagePreview.width = 0;
+    reduceCanvas.width = 0;
+    ui.imageStatus.textContent = '';
+    ui.imageError.textContent = '';
+  }
+
+  ui.imageModes.forEach(function (r) { r.addEventListener('change', scheduleImagePreview); });
+  ui.imageThreshold.addEventListener('input', function () {
+    thresholdAuto = false;
+    ui.imageThresholdValue.textContent = ui.imageThreshold.value;
+    scheduleImagePreview();
+  });
+  ui.imageBrightness.addEventListener('input', function () {
+    ui.imageBrightnessValue.textContent = ui.imageBrightness.value;
+    scheduleImagePreview();
+  });
+  ui.imageWidth.addEventListener('input', function () {
+    ui.imageWidthValue.textContent = ui.imageWidth.value + ' px';
+    scheduleImagePreview();
+  });
+  [ui.imageInvert, ui.imageMosaic].forEach(function (box) { box.addEventListener('change', scheduleImagePreview); });
+
+  ui.imageConfirm.addEventListener('click', function () {
+    recomputeImagePreview(); // les derniers réglages, même modifiés il y a moins de 150 ms
+    if (ui.imageConfirm.disabled) return;
+    const replace = ui.imageReplace.checked;
+    const r = controller.confirmImageImport(replace);
+    if (!r.ok) {
+      ui.imageError.textContent = r.error;
+      return;
+    }
+    importConfirmed = true;
+    ui.imageDialog.close();
+    showToast(replace
+      ? 'Image importée : ' + formatInt(r.count) + ' cellules vivantes, en pause. « Démarrer » pour la lancer.'
+      : 'Image prête à poser : cliquez sur la grille pour la poser, Échap pour terminer.', 6000);
+  });
+  ui.imageCancel.addEventListener('click', function () { ui.imageDialog.close(); });
+  // Fermeture par Annuler, Échap ou validation : ressources libérées ; sans validation, rien ne change.
+  // Chrome retarde « close » tant que la page est masquée : la disparition de l'attribut open est donc
+  // suivie aussi, pour libérer l'image tout de suite ; le nettoyage ne s'exécute qu'une fois par ouverture.
+  function imageDialogClosed() {
+    if (ui.imageDialog.open || !importImage) return;
+    if (!importConfirmed) controller.cancelImageImport();
+    closeImageResources();
+  }
+  ui.imageDialog.addEventListener('close', imageDialogClosed);
+  new MutationObserver(imageDialogClosed).observe(ui.imageDialog, { attributes: true, attributeFilter: ['open'] });
+
+  // --- Gomme : taille, contour qui suit le pointeur (calque à part) ---
+
+  let eraserSaveTimer = null;
+  let eraserCursorKey = '';
+
+  // Taille réglée par le curseur, le champ ou ⌥ + molette ; rejoint la sauvegarde existante peu après
+  function setEraserSize(value) {
+    const size = controller.setEraserSize(value);
+    clearTimeout(eraserSaveTimer);
+    eraserSaveTimer = setTimeout(function () { patchSave({ eraserSize: controller.getState().eraserSize }); }, 500);
+    refreshLegends();
+    return size;
+  }
+
+  // Complète la sauvegarde existante ; sans sauvegarde, la valeur part avec la prochaine écriture
+  function patchSave(values) {
+    if (!rawStore) return;
+    try {
+      const text = rawStore.getItem(SAVE_KEY);
+      const next = text === null ? null : Life.persistence.writeOptional(text, values);
+      if (next !== null) rawStore.setItem(SAVE_KEY, next);
+    } catch (err) {
+      // Stockage plein ou inaccessible : la prochaine écriture du contrôleur réessaiera
+    }
+  }
+
+  ui.eraserRange.addEventListener('input', function () { setEraserSize(Life.eraser.sizeFromSlider(ui.eraserRange.value)); });
+  ui.eraserRange.addEventListener('pointerup', function () { ui.eraserRange.blur(); });
+  ui.eraserRange.addEventListener('change', function () {
+    ui.eraserRange.value = String(Life.eraser.sliderFromSize(controller.getState().eraserSize));
+  });
+  // Champ numérique : valeur hors bornes ramenée dans les bornes à la validation
+  ui.eraserSize.addEventListener('change', function () {
+    ui.eraserSize.value = String(setEraserSize(ui.eraserSize.value));
+  });
+  ui.eraserSize.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      ui.eraserSize.value = String(setEraserSize(ui.eraserSize.value));
+      ui.eraserSize.blur();
+    }
+  });
+
+  // Contour du disque effacé, à l'échelle du zoom ; plus petit que 4 px : repère de taille fixe
+  function drawEraserCursor(state) {
+    const el = ui.eraserCursor;
+    let key = 'masqué';
+    let box = null;
+    if (state.effectiveTool === 'eraser' && state.hoverCell) {
+      const cam = state.camera;
+      const c = Life.camera.worldToScreen(cam, state.hoverCell.x + 0.5, state.hoverCell.y + 0.5);
+      const d = state.eraserSize * cam.cellSize;
+      const marker = d < 4;
+      const size = marker ? 10 : d;
+      box = { x: c.x - size / 2, y: c.y - size / 2, size: size, marker: marker };
+      key = [box.x, box.y, size, marker].join(',');
+    }
+    if (key === eraserCursorKey) return;
+    eraserCursorKey = key;
+    el.hidden = box === null;
+    if (!box) return;
+    el.style.width = box.size + 'px';
+    el.style.height = box.size + 'px';
+    el.style.transform = 'translate(' + box.x + 'px, ' + box.y + 'px)';
+    el.classList.toggle('is-marker', box.marker);
+  }
+
   function frame(now) {
     syncSize();
     controller.tick(now);
     const state = controller.getState();
     renderer.draw(state);
+    drawEraserCursor(state);
     updatePanel(state, now);
     drawChart(state, now);
     if (layoutDirty) placeMinimap();
