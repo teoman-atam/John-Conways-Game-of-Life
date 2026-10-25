@@ -1,6 +1,6 @@
 # Jeu de la vie
 
-Le jeu de la vie de John Conway sur une grille sans limite, avec zoom et déplacement à la manière d'une carte en ligne, des outils de composition (crayon, sélection, copier-coller, pose de motifs, import et export RLE), d'analyse (retour en arrière, saut de N générations, détection des états stables, graphique de population, couleur selon l'âge) de confort (thème, plein écran, panneau repliable, sauvegarde automatique) et de repérage (mini-carte, légendes des boutons). HTML, CSS et JavaScript natifs, sans dépendance, sans serveur, utilisable hors ligne.
+Le jeu de la vie de John Conway sur une grille sans limite, avec zoom et déplacement à la manière d'une carte en ligne, des outils de composition (crayon, gomme, sélection, copier-coller, pose de motifs, import et export RLE, import d'une image), d'analyse (retour en arrière, saut de N générations, détection des états stables, graphique de population, couleur selon l'âge) de confort (thème, plein écran, panneau repliable, sauvegarde automatique) et de repérage (mini-carte, légendes des boutons). HTML, CSS et JavaScript natifs, sans dépendance, sans serveur, utilisable hors ligne.
 
 ## Lancer l'application
 
@@ -32,9 +32,10 @@ La barre en haut de la grille porte les outils. Un seul est actif à la fois, mi
 | Déplacer | `H` | Glisser déplace la vue ; un clic ne fait rien |
 | Crayon (par défaut) | `P` | Un clic inverse une case. Un glisser dessine si la première case touchée est morte, efface si elle est vivante. Le tracé est continu même avec un geste rapide |
 | Sélection | `S` | Glisser trace un rectangle, affiché en pointillés avec ses dimensions. Un nouveau tracé remplace le précédent, un clic ou `Échap` l'efface |
-| Pose | — | Activée par le choix d'un motif, `⌘V` ou un import RLE. L'aperçu suit le curseur ; chaque clic pose le contenu sans effacer l'existant. `Échap`, « Terminer » ou le choix d'un outil la quitte |
+| Gomme | `X` | Un clic efface un disque de cellules (tampon) ; un glisser efface le long du trait, sans trou même avec un geste rapide. Diamètre de 1 à 512 cellules (voir « Gomme ») |
+| Pose | — | Activée par le choix d'un motif, `⌘V`, un import RLE ou une image importée sans « Remplacer ». L'aperçu suit le curseur ; chaque clic pose le contenu sans effacer l'existant. `Échap`, « Terminer » ou le choix d'un outil la quitte |
 
-Pendant la simulation, tous les outils se comportent comme Déplacer : on n'édite qu'en pause. Le démarrage efface la sélection et quitte la pose. Toute édition (crayon, pose, couper, supprimer, remplissage) remet le compteur de générations à 0.
+Pendant la simulation, tous les outils se comportent comme Déplacer : on n'édite qu'en pause. Le démarrage efface la sélection et quitte la pose. Toute édition (crayon, gomme, pose, couper, supprimer, remplissage, import d'image) remet le compteur de générations à 0.
 
 Les boutons Copier, Couper, Coller et Supprimer de la barre font la même chose que les raccourcis ; ils ne sont actifs que lorsque l'action est possible.
 
@@ -51,6 +52,9 @@ Les boutons Copier, Couper, Coller et Supprimer de la barre font la même chose 
 | `R` | Recentrer sur les cellules vivantes ; grille vide : retour à l'origine |
 | `+` et `-` | Zoomer et dézoomer au centre de la vue |
 | `H`, `P`, `S` | Outils Déplacer, Crayon, Sélection |
+| `X` | Outil Gomme |
+| `⌥` + molette (gomme choisie) | Agrandir ou réduire la gomme, sous le curseur, sans zoomer |
+| `I` | Importer une image (ouvre le choix du fichier ; met d'abord en pause) |
 | `⌘C`, `⌘X` | Copier, couper la sélection (en pause) |
 | `⌘V` | Coller : passe en mode pose avec le presse-papiers interne |
 | `⌫` ou `Suppr` | Supprimer les cellules de la sélection (en pause) |
@@ -62,7 +66,7 @@ Les boutons Copier, Couper, Coller et Supprimer de la barre font la même chose 
 | `L` | Replier ou déplier le panneau |
 | `M` | Afficher ou masquer la mini-carte |
 
-Sur écran tactile, cette liste est masquée dans le panneau. Hors Mac, `Ctrl` remplace `⌘`. `M` est la seule touche ajoutée : elle était libre (le contrôleur l'ignorait) ; `⌘M` reste au navigateur (réduire la fenêtre). La liste « Raccourcis » du panneau n'a pas changé, pour qu'il tienne toujours dans 760 px : `M` est indiqué par la légende du bouton Mini-carte. Les raccourcis sont inactifs quand le focus est dans un champ (dont le champ N), la liste des motifs ou une fenêtre de dialogue (RLE, Réglages). Le presse-papiers est interne à la page : il persiste pendant la session mais ne passe pas par celui du système.
+Sur écran tactile, cette liste est masquée dans le panneau. Hors Mac, `Ctrl` remplace `⌘`. `M` est la seule touche ajoutée : elle était libre (le contrôleur l'ignorait) ; `⌘M` reste au navigateur (réduire la fenêtre). La liste « Raccourcis » du panneau n'a pas changé, pour qu'il tienne toujours dans 760 px : `M` est indiqué par la légende du bouton Mini-carte. `X` et `I` ont été ajoutés de la même façon : ces deux touches étaient libres (le contrôleur les ignorait) ; `⌘X` coupe toujours la sélection et `⌘I` reste au navigateur. `X` est affiché sur le bouton Gomme, `I` dans la légende du bouton d'import ; la liste du panneau n'a pas de ligne de plus (il reste 2 px de marge à 760 px de haut). Les raccourcis sont inactifs quand le focus est dans un champ (dont le champ N), la liste des motifs ou une fenêtre de dialogue (RLE, Réglages). Le presse-papiers est interne à la page : il persiste pendant la session mais ne passe pas par celui du système.
 
 ## Contrôles du panneau
 
@@ -83,13 +87,45 @@ Sur écran tactile, cette liste est masquée dans le panneau. Hors Mac, `Ctrl` r
 
 La barre en haut de la grille porte aussi, en icônes (leur légende s'affiche au survol, voir « Légendes des boutons ») :
 - **Recentrer** : cadre les cellules vivantes (`R`) ;
+- **Importer une image** (`I`) : voir « Import d'image » ;
 - **Enregistrer l'image** : PNG de la grille, nommé `jeu-de-la-vie_gen-<n>_<AAAAMMJJ-HHMMSS>.png`, avec le thème et les couleurs affichés mais sans la sélection, l'aperçu de pose ni la mini-carte ;
 - **Graphique** (`G`) et **Mini-carte** (`M`), boutons à bascule en surbrillance quand ils sont actifs ;
 - **Plein écran** (`E`), **Replier le panneau** (`L`) et **Réglages** (⚙).
 
 Un indicateur de sauvegarde, en très petit à côté du titre, affiche « Sauvegardé à HH:MM:SS », « Aucune sauvegarde », « Sauvegarde indisponible » ou « Échec de la sauvegarde ».
 
-Zoom : pincer sur le trackpad, ou molette et défilement à deux doigts, sous le curseur. Les coordonnées « x, y » de la case survolée s'affichent en bas à gauche de la grille.
+Zoom : pincer sur le trackpad, ou molette et défilement à deux doigts, sous le curseur (avec la gomme, `⌥` + molette change sa taille au lieu de zoomer). Les coordonnées « x, y » de la case survolée s'affichent en bas à gauche de la grille.
+
+## Gomme
+
+Outil de la barre (`X`), entre Sélection et le groupe Copier, Couper, Coller, Supprimer, qui passe en icônes pour que la barre tienne sur une ligne à 1 280 px.
+
+- **Effet** : une cellule est effacée si la distance entre son centre et le centre de la gomme est au plus la moitié du diamètre. Un clic est un tampon ; un glisser efface tout ce qui est à moins d'un demi-diamètre du trait suivi par le pointeur (segment entre deux positions successives), donc sans trou même avec un geste très rapide. Un geste complet (appui, glisser, relâchement) compte pour une seule édition : compteur à 0, historique, graphique et détection vidés, comme pour le Crayon. Un geste qui n'efface rien ne change rien.
+- **Taille** : diamètre en cellules, de 1 à 512 (3 au départ). Quand la gomme est choisie, une petite barre apparaît sous la barre d'outils : un curseur logarithmique (la précision est la même pour les petites et les grandes tailles) et un champ numérique, synchronisés. `⌥` + molette (ou défilement à deux doigts) agrandit ou réduit la gomme sous le curseur ; la molette seule et le pincement zooment comme d'habitude.
+- **Contour** : un cercle suit le pointeur, à l'échelle (diamètre × taille d'une cellule). Quand il ferait moins de 4 px, il est remplacé par un repère fixe de 10 px. Il est dessiné sur un calque à part, au-dessus de la grille : il n'apparaît jamais dans l'image enregistrée.
+- **Pendant la simulation ou un saut**, la gomme se comporte comme Déplacer (glisser déplace la vue, rien n'est effacé, le contour est masqué), comme les autres outils.
+- **Coût** : chaque déplacement examine soit la zone couverte, soit les cellules vivantes, selon ce qui est le plus petit. À 512 de diamètre sur environ 100 000 cellules, un déplacement prend environ 7 ms au plus (voir « Performances mesurées »).
+- La taille est sauvegardée (champ facultatif `settings.eraserSize`, voir « Sauvegarde automatique ») ; la légende du bouton donne « Gomme (X) » avec la taille courante.
+
+## Import d'image
+
+Transforme une image en grille de départ. Trois moyens : le bouton « Importer une image » de la barre (icône d'image), la touche `I`, ou un fichier glissé-déposé sur la grille. L'import se fait en pause : pendant la lecture, la simulation est d'abord mise en pause ; pendant un saut, il est refusé avec un message.
+
+- **Formats** : PNG, JPEG, WebP et GIF (première image seulement pour un GIF animé), 20 Mo au plus. Une photo HEIC (iPhone) n'est pas lue par le navigateur : un message propose de la convertir en JPEG. Un fichier qui n'est pas une image, ou qu'on ne peut pas décoder (par exemple un texte renommé en `.png`), donne un message ; la grille ne change pas. L'orientation EXIF d'une photo est respectée (une photo prise en portrait n'apparaît pas couchée).
+- **Fenêtre d'aperçu** : miniature de l'image et aperçu du résultat en cellules (un pixel par cellule), nombre de cellules vivantes en direct et taille de la grille obtenue, temps de conversion mesuré. Chaque réglage relance le calcul 150 ms après la dernière modification.
+  - **Seuil** (par défaut) : une cellule est vivante si le pixel est plus sombre que le seuil. Le seuil est calculé automatiquement par la méthode d'Otsu (« auto ») ; le curseur de 0 à 255 le règle à la main.
+  - **Tramage** : diffusion d'erreur de Floyd-Steinberg (7/16, 3/16, 5/16, 1/16), qui rend les dégradés par une densité de points ; curseur de luminosité de -100 à +100.
+  - **Inverser** : les pixels clairs deviennent vivants (dans les deux modes).
+  - **Largeur** : de 20 à 1 000 cellules (200 au départ) ; la hauteur suit les proportions de l'image.
+  - **Remplacer la grille actuelle** : cochée au départ.
+- **Luminance** : Rec. 709 (0,2126 R + 0,7152 V + 0,0722 B). Un pixel d'opacité inférieure à 50 % donne toujours une cellule morte, même avec Inverser.
+- **Mosaïque stable** : chaque pixel vivant devient un bloc de 2 × 2 cellules, un bloc toutes les 4 cellules (la grille est 4 fois plus grande). Le bloc est une nature morte et deux blocs ne se touchent jamais : l'image reste figée à la lecture. La fenêtre l'annonce : « Image figée : elle ne bougera pas tant que vous ne la perturbez pas (gomme, crayon). » Effacer une partie à la gomme relance l'évolution autour de la zone effacée ; une case ajoutée au crayon contre un bloc fait de même (elle donne 4 voisines à une cellule du bloc).
+- **Plafond** : si le résultat dépasse `MAX_LIVE_CELLS` (100 000 cellules), « Valider » est désactivé et un message propose de réduire la largeur ou de changer de mode. Même chose si l'image ne donne aucune cellule vivante.
+- **Valider, avec Remplacer** : la grille est remplacée par le résultat, centré sur le centre de la vue ; en pause, compteur à 0, âges à 1, historique, graphique et détection vidés, sauvegarde déclenchée ; la vue est recadrée comme avec Recentrer. La simulation ne démarre pas d'elle-même.
+- **Valider, sans Remplacer** : le résultat passe en mode pose, comme un motif (aperçu sous le curseur, rotations et miroirs, plusieurs poses, `Échap` pour terminer).
+- **Annuler**, × ou `Échap` : rien ne change.
+- **Confidentialité** : l'image est lue dans le navigateur, depuis une adresse locale (`blob:`), et n'est jamais envoyée sur le réseau. Elle n'est stockée nulle part, ni dans le stockage local, ni dans la sauvegarde, ni dans l'historique : seules les cellules obtenues entrent dans la grille et donc dans la sauvegarde. À la fermeture de la fenêtre, l'adresse locale est libérée et les canvas de travail sont vidés.
+- **Réduction** : une grande photo est d'abord réduite par le navigateur à 2 000 px de large au plus (lissage de haute qualité), puis à la largeur choisie : une photo de 4 000 × 3 000 s'ouvre en moins de 0,2 s et chaque recalcul prend quelques dizaines de millisecondes au plus.
 
 ## Analyse
 
@@ -148,9 +184,10 @@ Accessibilité : les infobulles natives (`title`) de ces boutons ont été retir
 
 L'application s'enregistre seule dans le stockage local du navigateur, sous la clé `jeu-de-la-vie:sauvegarde`, et retrouve à l'ouverture la grille et la vue telles qu'on les a laissées.
 
-- **Sauvegardé** : les cellules vivantes (en RLE, avec leurs coordonnées exactes), la caméra (position et zoom), la vitesse, la densité, la valeur N, le thème, la couleur selon l'âge, la pause automatique, la visibilité du graphique, l'état replié du panneau et la visibilité de la mini-carte.
+- **Sauvegardé** : les cellules vivantes (en RLE, avec leurs coordonnées exactes), la caméra (position et zoom), la vitesse, la densité, la valeur N, le thème, la couleur selon l'âge, la pause automatique, la visibilité du graphique, l'état replié du panneau, la visibilité de la mini-carte et la taille de la gomme.
 - **Visibilité de la mini-carte** : champ facultatif `settings.minimapVisible`, ajouté sans changer `schemaVersion` (toujours 1) ni aucune autre règle de validation. Une sauvegarde plus ancienne, sans ce champ, se charge à l'identique avec la mini-carte visible. Le champ accompagne chaque écriture ; `M` le met aussi à jour tout de suite dans la sauvegarde existante (sans en créer une s'il n'y en a pas, et sans changer l'heure affichée par l'indicateur).
-- **Non sauvegardé** : le compteur de générations, les âges, l'historique, le graphique, la détection, la sélection, le presse-papiers, l'outil actif et le plein écran. Au chargement, l'application repart en pause, au compteur 0, avec des âges à 1 et un historique, un graphique et une détection vides.
+- **Taille de la gomme** : second champ facultatif, `settings.eraserSize` (entier de 1 à 512), ajouté de la même façon sans changer `schemaVersion` ni aucune règle existante. Absent (sauvegarde plus ancienne) : 3. Présent mais invalide : la sauvegarde est refusée comme toute valeur hors bornes. Le réglage rejoint la sauvegarde existante une demi-seconde après le dernier changement.
+- **Non sauvegardé** : l'image importée elle-même (seules les cellules obtenues le sont), le compteur de générations, les âges, l'historique, le graphique, la détection, la sélection, le presse-papiers, l'outil actif et le plein écran. Au chargement, l'application repart en pause, au compteur 0, avec des âges à 1 et un historique, un graphique et une détection vides.
 - **Quand** : en pause, 1 seconde après la dernière modification ; pendant la simulation ou un saut, au plus une fois toutes les 5 secondes, jamais à chaque génération. Une écriture immédiate a lieu à chaque mise en pause (y compris automatique), à la fin d'un saut, quand la page est quittée ou cachée.
 - **Sans sauvegarde**, l'application démarre comme avant (grille vide, pause automatique cochée). **Sauvegarde illisible** (corrompue, version inconnue, valeurs hors bornes, plus de 100 000 cellules) : elle est ignorée, un message l'indique et l'application démarre vide ; elle sera remplacée à la modification suivante.
 - **Stockage inaccessible** : l'application fonctionne normalement, l'indicateur affiche « Sauvegarde indisponible ». **Stockage plein** : la sauvegarde précédente est conservée, un message l'indique une fois et l'indicateur affiche « Échec de la sauvegarde ».
@@ -196,6 +233,15 @@ bo$2bo$3o!
 | `SHRINK_FILL` | `src/minimap.js` | 0,25 | En dessous de cette part occupée, l'échelle de la mini-carte se resserre |
 | `MIN_RECT_SIZE` | `src/minimap.js` | 4 | Rectangle de vue plus petit (en px) : remplacé par un repère de taille fixe |
 | `SHOW_DELAY_MS` | `src/tooltips.js` | 400 | Délai d'apparition d'une légende au survol |
+| `ERASER_MIN_SIZE`, `ERASER_MAX_SIZE` | `src/eraser.js` | 1, 512 | Diamètre de la gomme, en cellules |
+| `ERASER_DEFAULT_SIZE` | `src/eraser.js` | 3 | Diamètre au départ et pour une sauvegarde qui n'en a pas |
+| `MAX_FILE_BYTES` | `src/imageConvert.js` | 20 Mo | Poids maximal d'une image importée |
+| `WIDTH_MIN`, `WIDTH_MAX`, `WIDTH_DEFAULT` | `src/imageConvert.js` | 20, 1 000, 200 | Largeur de l'image importée, en cellules |
+| `MAX_SIDE` | `src/imageConvert.js` | 4 096 | Hauteur maximale en cellules ; une image très haute est ramenée à cette hauteur, la largeur suivant |
+| `ALPHA_MIN` | `src/imageConvert.js` | 128 | Opacité minimale (sur 255) d'un pixel pour qu'il puisse donner une cellule vivante |
+| `MOSAIC_STEP`, `MOSAIC_BLOCK` | `src/imageConvert.js` | 4, 2 | Mosaïque stable : un bloc de 2 × 2 toutes les 4 cellules |
+| `IMAGE_WORK_MAX` | `src/app.js` | 2 000 | Largeur maximale (px) de la copie de travail d'une image, avant la réduction à la largeur choisie |
+| `IMAGE_PREVIEW_DELAY_MS` | `src/app.js` | 150 | Délai entre le dernier réglage et le recalcul de l'aperçu |
 | `ARM_MS` | `src/touch.js` | 90 | Attente du premier doigt avant d'agir, le temps qu'un second doigt le rejoigne |
 | `LONG_PRESS_MS` | `src/touch.js` | 500 | Appui long sur un bouton pour voir sa légende |
 
@@ -209,6 +255,8 @@ On peut modifier ces valeurs dans les fichiers indiqués.
 - `src/transform.js` : extraction, translation, rotations, miroirs, union et retrait, sans modifier les entrées.
 - `src/rle.js` : lecture et écriture du format RLE.
 - `src/tools.js` : outils, tracé de Bresenham et machine d'état des gestes.
+- `src/eraser.js` : gomme sans DOM (cellules à effacer pour un tampon ou un trait, bornes de taille, curseur logarithmique, `⌥` + molette).
+- `src/imageConvert.js` : conversion d'une image en cellules sans DOM (luminance, Otsu, seuil, Floyd-Steinberg, mosaïque, estimation, vérification du fichier).
 - `src/ages.js` : âges des cellules et tranches de couleur.
 - `src/history.js` : tampon circulaire de l'historique des générations.
 - `src/detection.js` : empreinte des états, détection d'extinction, de stabilité et d'oscillation.
@@ -220,10 +268,10 @@ On peut modifier ces valeurs dans les fichiers indiqués.
 - `src/minimap.js` : mini-carte (étendue et paliers d'échelle, conversions, rastérisation, rectangle de la vue, état sans DOM avec horloge injectée, rendu sur son propre canvas).
 - `src/tooltips.js` : table des raccourcis, légendes des boutons selon l'état, position dans la fenêtre, minuteur injecté, blocage des boutons `aria-disabled`.
 - `src/touch.js` : écran tactile (un doigt pour l'outil, deux doigts pour zoomer et déplacer la vue, appui long sur un bouton), sans DOM, temps injecté.
-- `src/controller.js` : état et règles de l'interface (outil, sélection, presse-papiers, pose, retour arrière, saut, détection, thème, panneau, sauvegarde), sans DOM ni minuteur réel ; horloge et stockage injectés.
+- `src/controller.js` : état et règles de l'interface (outil, gomme, sélection, presse-papiers, pose, import d'image, retour arrière, saut, détection, thème, panneau, sauvegarde), sans DOM ni minuteur réel ; horloge, stockage et décodage d'image injectés.
 - `src/renderer.js` : dessin Canvas de la grille (avec ou sans couleur selon l'âge), du calque d'édition et du graphique.
-- `src/app.js` : branchement des événements et boucle d'animation unique.
-- `tests/` : mini-exécuteur de tests et tests de chaque module, avec stockage, horloge, matchMedia et document factices ; `tests/fixtures/render-lot-a.js` fige le rendu d'avant la couleur selon l'âge, pour vérifier qu'il reste identique option décochée ; `tests/fixtures/avant-minimap-legendes.js` fige, sur le code d'avant la mini-carte, l'effet de chaque raccourci, une sauvegarde et les messages de refus (scénarios de `tests/regression-scenarios.js`).
+- `src/app.js` : branchement des événements et boucle d'animation unique ; décodage des images (élément `<img>` sur une adresse `blob:`), fenêtre d'aperçu et contour de la gomme.
+- `tests/` : mini-exécuteur de tests et tests de chaque module, avec stockage, horloge, matchMedia et document factices ; `tests/fixtures/render-lot-a.js` fige le rendu d'avant la couleur selon l'âge, pour vérifier qu'il reste identique option décochée ; `tests/fixtures/avant-minimap-legendes.js` fige, sur le code d'avant la mini-carte, l'effet de chaque raccourci, une sauvegarde et les messages de refus (scénarios de `tests/regression-scenarios.js`) ; `tests/fixtures/avant-image-gomme.js` fige de même, sur le code d'avant l'import d'image et la gomme, les raccourcis (dont `⌘X`), les gestes des outils et une sauvegarde (scénarios de `tests/image-eraser-scenarios.js`).
 
 ## Performances mesurées
 
@@ -238,6 +286,10 @@ Mesures en temps réel dans Chrome 155 sans interface, ouvert en `file://`, fen�
 | Historique plein (`performance.memory`) | 37,5 Mio pour 100 états d'environ 11 700 cellules ; 63,9 Mio au plafond de 2 000 000 de cellules (85 états) ; environ 33 octets par cellule |
 | Même scénario à 30 gén./s, avant / après la mini-carte (trois passages alternés, mini-carte visible) | avant : 29,99 à 30,06 gén./s, 95e centile 29,2 à 29,4 ms ; après : 29,99 à 30,03 gén./s, 95e centile 29,2 à 29,6 ms ; mini-carte rastérisée 9,2 fois par seconde |
 | Rastérisation de la mini-carte (décodage, tampon, image Retina) | 1,1 ms à 12 000 cellules ; 6,1 ms à 100 000 cellules |
+| Même scénario à 30 gén./s, avant / après l'import d'image et la gomme (cinq passages alternés) | avant : 29,99 à 30,06 gén./s, image médiane 16,6 à 17,3 ms, 95e centile 29,6 à 30,5 ms ; après : 29,98 à 30,06 gén./s, image médiane 16,7 à 17,6 ms (un passage à 20,8 ms), 95e centile 29,7 à 30,3 ms |
+| Ouverture d'une photo JPEG de 4 000 × 3 000 (décodage et copie de travail à 2 000 px) | 0,08 s ; premier aperçu en 55 ms |
+| Recalcul de l'aperçu de cette photo (réduction et conversion, six recalculs) | Seuil : 4 ms en médiane à 200 de large, 19 ms (53 ms au plus) à 1 000 ; Tramage : 3 ms à 200, 23 ms (33 ms au plus) à 1 000 |
+| Glisser de la gomme, diamètre 512, 97 078 cellules, 81 déplacements | le long du motif : 4,9 ms en médiane, 7,0 ms au 95e centile par déplacement ; à travers le motif : 0,3 ms en médiane, 3,1 ms au 95e centile ; images à 16,8 ms au 95e centile pendant le glisser |
 
 ## Checklist manuelle (30 minutes)
 
@@ -296,6 +348,17 @@ Ce que les tests automatiques ne peuvent pas prouver. Cocher chaque point. Les m
 - [ ] 37. **Boutons grisés** : sans sélection, survoler Copier : « Sélectionnez d'abord une zone » ; pendant la lecture, survoler « Une génération » : « Disponible en pause ». Cliquer sur un bouton grisé ne fait rien.
 - [ ] 38. **Légendes au clavier, thèmes et plein écran** : `Tab` d'un bouton à l'autre : la légende s'affiche tout de suite ; `Entrée` sur un bouton grisé ne fait rien. En thème clair puis sombre, légendes et mini-carte restent lisibles. En plein écran (`E`), panneau ouvert puis replié : rien ne se chevauche et les légendes des boutons du bord droit restent entières à l'écran.
 
+**Gomme et import d'image**
+
+- [ ] 58. **Gomme** : `X` choisit la Gomme ; le curseur devient une croix entourée d'un cercle à l'échelle. Dessiner un grand motif, effacer d'un clic (tampon) puis d'un glisser rapide au trackpad : la trace est continue. Régler 1, 10, puis 512 au curseur et au champ ; zoomer et dézoomer : le cercle suit l'échelle, puis devient un petit repère fixe quand il est minuscule. `⌥` + défilement à deux doigts change la taille sans zoomer ; le défilement seul zoome.
+- [ ] 59. **Gomme et `⌘X`** : sélectionner une zone, `⌘X` : elle est coupée (l'outil ne change pas). « Démarrer », puis glisser avec la Gomme : la vue se déplace, rien n'est effacé. Enregistrer l'image avec le cercle visible : il n'est pas dans le PNG.
+- [ ] 60. **Taille sauvegardée** : régler la gomme à 40, fermer l'onglet, rouvrir : la taille est toujours 40.
+- [ ] 61. **Import d'une photo** : « Importer une image » (ou `I`), choisir une photo JPEG. L'aperçu apparaît vite ; essayer Seuil (curseur), Tramage (luminosité), Inverser, la largeur ; le nombre de cellules suit. Valider : la grille est remplacée, centrée, en pause, compteur à 0 ; « Démarrer » la lance.
+- [ ] 62. **Plafond et options** : mettre la largeur à 1 000 sur une photo : « Valider » se grise avec un message. Décocher « Remplacer » et valider : l'image suit le curseur comme un motif ; la poser deux fois, `Échap`. Rouvrir une image et appuyer sur `Échap` : rien ne change.
+- [ ] 63. **Mosaïque stable** : cocher « Mosaïque stable » : la note « Image figée… » s'affiche. Valider, « Démarrer » : rien ne bouge. Pause, effacer un morceau à la gomme, « Démarrer » : l'image se met à évoluer autour de la zone effacée.
+- [ ] 64. **Fichiers refusés** : glisser sur la grille un fichier texte renommé en `.png`, une image de plus de 20 Mo, une photo HEIC : un message chacun, la grille ne change pas. Glisser une vraie image : la fenêtre s'ouvre.
+- [ ] 65. **Confidentialité** : après un import, ouvrir les outils de développement de Chrome, onglet Réseau, puis refaire un import : aucune requête n'apparaît. Onglet Application > Stockage local : seule la clé `jeu-de-la-vie:sauvegarde` est présente, sans image.
+
 **Safari et machine réelle** (jamais vérifiés pendant le développement)
 
 - [ ] 39. **Ouverture en `file://` dans Safari** : clic droit sur `index.html` > Ouvrir avec > Safari. Tout s'affiche, sans message d'erreur.
@@ -317,6 +380,11 @@ Ce que les tests automatiques ne peuvent pas prouver. Cocher chaque point. Les m
 - [ ] 55. **Fluidité sur téléphone** : canon de Gosper, vitesse 30, « Démarrer » : noter « Gén./s réelles » et la fluidité du déplacement à deux doigts pendant la lecture.
 - [ ] 56. **Règles du jeu, sur l'ordinateur** : pendant la lecture, cliquer sur le « ? » à côté du titre : le menu des règles s'ouvre sous le bouton, la simulation continue. Cliquer sur « Jeu de la vie, sur Wikipédia » : l'article s'ouvre dans un nouvel onglet. `Échap` ferme le menu, puis `Espace` met bien en pause. Rouvrir le menu et cliquer sur la grille en pause : le menu se ferme sans dessiner de case.
 - [ ] 57. **Règles du jeu, sur le téléphone** : toucher « Règles du jeu » en haut du panneau : le menu occupe l'écran, défile au doigt, le × reste visible et le ferme ; le lien Wikipédia s'ouvre.
+- [ ] 66. **Safari, glisser-déposer** : en `file://` dans Safari, glisser une image depuis le Finder sur la grille : la grille se met en évidence, la fenêtre d'aperçu s'ouvre ; lâcher une image ailleurs dans la page ne l'ouvre pas à la place de l'application.
+- [ ] 67. **Safari, sélecteur de fichier** : bouton « Importer une image » puis `I` : le sélecteur s'ouvre et ne propose que des images ; refaire les points 61 à 63 dans Safari.
+- [ ] 68. **Photo d'iPhone** : importer une photo d'iPhone en HEIC dans Safari sur le Mac (message attendu, ou conversion automatique par Safari : noter ce qui se passe), puis la même photo exportée en JPEG (Aperçu > Exporter) : orientation correcte. Sur l'iPhone, « Importer une image » ouvre la photothèque : noter si la photo est acceptée.
+- [ ] 69. **Safari, `⌥` + molette** : avec la Gomme, `⌥` + défilement à deux doigts change la taille sans zoomer ; le pincement zoome. Refaire le point 58 dans Safari.
+- [ ] 70. **Téléphone, gomme** : toucher le bouton Gomme, régler la taille au curseur, effacer au doigt ; deux doigts zooment sans rien effacer.
 
 ## Synthèse des fonctions
 
@@ -327,3 +395,4 @@ Ce que les tests automatiques ne peuvent pas prouver. Cocher chaque point. Les m
 - **Mini-carte et légendes** : mini-carte de la grille sans limite (échelle par paliers stable, navigation au clic et au glisser, `M`, visibilité sauvegardée) ; légendes des boutons selon l'état, avec raccourci et raison de désactivation, au survol et au clavier.
 - **Téléphone et tablette** : zoom et déplacement à deux doigts sans modifier les cases, appui long pour les légendes, cibles tactiles de 40 px, champs sans zoom de la page sur iPhone, mise en page compacte sur petit écran, bouton Plein écran seulement s'il est utilisable.
 - **Règles du jeu** : menu déroulant avec les règles officielles de Conway, accessible à tout moment depuis le panneau, et liens vers Wikipédia en français et en anglais.
+- **Import d'image et gomme** : gomme de 1 à 512 cellules (tampon, trait continu, contour à l'échelle, `⌥` + molette, taille sauvegardée) ; import d'une photo en grille de départ (Seuil avec Otsu, Tramage de Floyd-Steinberg, Inverser, Mosaïque stable, plafond, remplacement ou pose), par bouton, `I` ou glisser-déposer, sans jamais envoyer ni stocker l'image.
